@@ -1,0 +1,9 @@
+# Misc
+.DS_Store
+.direnv/
+imgui.ini
+
+# Python
+__pycache__/
+.ipynb_checkpoints/
+.venv/

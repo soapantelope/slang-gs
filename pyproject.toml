@@ -1,0 +1,37 @@
+[project]
+name = "cs248a-renderer"
+version = "0.1.0"
+description = "A volumetric renderer implementation in slang."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipywidgets>=8.1.7",
+    "jax>=0.8.0",
+    "jupyterlab>=4.4.9",
+    "matplotlib>=3.10.6",
+    "open3d>=0.19.0",
+    "pyntcloud>=0.3.1",
+    "pytest>=9.0.1",
+    "pytest-benchmark>=5.2.3",
+    "slangpy>=0.36.0",
+    "slangpy-imgui-bundle",
+    "slangpy-nn",
+    "tensorboard>=2.20.0",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+    "tqdm>=4.67.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["external/slangpy-imgui-bundle", "external/slangpy-nn"]
+
+[tool.uv.sources]
+slangpy-imgui-bundle = { workspace = true, editable = true }
+slangpy-nn = { workspace = true }
+
+[dependency-groups]
+dev = ["black>=25.9.0"]

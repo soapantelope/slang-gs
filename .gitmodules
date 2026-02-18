@@ -1,0 +1,6 @@
+[submodule "external/slangpy-imgui-bundle"]
+	path = external/slangpy-imgui-bundle
+	url = git@github.com:fangjunzhou/slangpy-imgui-bundle
+[submodule "external/slangpy-nn"]
+	path = external/slangpy-nn
+	url = git@github.com:fangjunzhou/slangpy-nn.git

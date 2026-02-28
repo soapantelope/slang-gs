@@ -4,10 +4,10 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from cs248a_renderer import setup_device, RendererModules
-from cs248a_renderer.model.scene import Scene
+from cs248a_renderer.model.cameras import PerspectiveCamera
+from cs248a_renderer.model.gaussian_splat import GaussianSplat
 from cs248a_renderer.renderer.core_renderer import Renderer
-from cs248a_renderer.model.volumes import DenseVolume
-from cs248a_renderer.model.transforms import Transform3D
+from pathlib import Path
 
 device = setup_device([])
 renderer_modules = RendererModules(device)
@@ -27,32 +27,20 @@ renderer = Renderer(
     render_modules=renderer_modules
 )
 renderer.sqrt_spp = 1
+renderer._ambientColor = glm.vec4(0.0, 0.0, 0.0, 0.0)
 
-scene = Scene()
-cam = scene.camera
+cam = PerspectiveCamera()
 cam_pos = glm.vec3(1, 1, 1) * 3
 cam.transform.position = cam_pos
 cam.transform.rotation = glm.quatLookAt(glm.normalize(-cam_pos), glm.vec3(0.0, 1.0, 0.0))
 
-lego_volume = np.load("../resources/lego_volume.npy")
-volume = DenseVolume(
-    name="volume",
-    transform=Transform3D(
-        position=glm.vec3(0.0, 0.0, 0.0),
-        rotation=glm.angleAxis(glm.radians(-90.0), glm.vec3(1.0, 0.0, 0.0)),
-        scale=glm.vec3(1.0, 1.0, 1.0),
-    ),
-    data=lego_volume.astype(np.float32),
-    properties={
-        "pivot": (0.5, 0.5, 0.5),
-        "voxel_size": 0.02,
-    }
-)
-renderer.load_volume(volume=volume)
+gaussian = GaussianSplat(device=device, path=Path("../resources/bonsai.ply"))
+renderer.load_gaussian(gaussian=gaussian)
+
 renderer.sqrt_spp = 1
-renderer.render(
-    scene.camera.view_matrix(),
-    scene.camera.fov
+renderer.render_gaussians(
+    cam.view_matrix(),
+    cam.fov
 )
 plt.imshow(np.flipud(output_image.to_numpy()))
 plt.axis('off')

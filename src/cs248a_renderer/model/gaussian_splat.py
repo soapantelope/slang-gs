@@ -1,4 +1,4 @@
-from dataclasses import field
+from dataclasses import dataclass, field
 import slangpy as spy
 import pathlib
 from pyntcloud import PyntCloud
@@ -6,16 +6,12 @@ import numpy as np
 import pandas as pd
 import logging
 
-from cs248a_renderer.model.transforms import Transform3D
-
-
 logger = logging.getLogger(__name__)
 
-
-class GaussianSplat:
-    transform: Transform3D = field(default_factory=Transform3D)
-
-    def __init__(self, device: spy.Device, path: pathlib.Path) -> None:
+@dataclass
+class GaussianSplat():
+    
+    def __init__(self, device: spy.Device, path: pathlib.Path, **kwargs) -> None:
         # Load modules.
         self._math_module = spy.Module.load_from_file(device=device, path="math.slang")
         self._model_module = spy.Module.load_from_file(
@@ -75,11 +71,11 @@ class GaussianSplat:
         self._model_module.unpackGaussianSplat(
             tid=spy.grid(shape=(self.num_gaussians,)),
             soaSplat={
-                "position": position_buf,
-                "rotation": rotation_buf,
-                "scale": scale_buf,
-                "color": color_buf,
-                "opacity": opacity_buf,
+                "positions": position_buf,
+                "rotations": rotation_buf,
+                "scales": scale_buf,
+                "colors": color_buf,
+                "opacities": opacity_buf,
             },
             gaussians=self.gaussians,
         )

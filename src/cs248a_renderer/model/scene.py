@@ -14,6 +14,7 @@ from cs248a_renderer.model.ray_marcher_config import RayMarcherConfig
 from cs248a_renderer.model.scene_object import SceneObject
 from cs248a_renderer.model.mesh import Triangle, Mesh
 from cs248a_renderer.model.material import PhysicsBasedMaterial
+from cs248a_renderer.model.gaussian_splat import GaussianSplat
 
 
 @dataclass
@@ -61,6 +62,7 @@ class Scene:
     _volumes: List[DenseVolume] = field(default_factory=list)
     # Volume
     single_volume: DenseVolume | None = None
+    gaussian: GaussianSplat | None = None
 
     def __post_init__(self):
         self.lookup[self.root.name] = self.root

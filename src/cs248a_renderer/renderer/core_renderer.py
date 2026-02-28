@@ -19,7 +19,7 @@ from cs248a_renderer.model.material import create_material_buf
 from cs248a_renderer.model.volumes import DenseVolume
 from cs248a_renderer.model.bounding_box import BoundingBox3D
 from cs248a_renderer.model.material import PhysicsBasedMaterialTextureBuf
-
+from cs248a_renderer.model.gaussian_splat import GaussianSplat
 
 class FilteringMethod(Enum):
     NEAREST = 0
@@ -39,12 +39,18 @@ class Renderer:
     _material_count: int | None
     _triangle_buf: spy.NDBuffer | None
     _triangle_count: int | None
+
     _surface_volume_tex_buf: spy.NDBuffer | None
     _surface_volume_buf: spy.NDBuffer | None
     _surface_volume_count: int | None
+
     _volume: Dict | None
     _volume_tex_buf: spy.NDBuffer | None
     _volume_d_tex_buf: spy.NDBuffer | None
+
+    _gaussian_buf: spy.InstanceBuffer | None
+    _gaussian_count: int | None
+
     _bvh_node_buf: spy.NDBuffer | None
     _use_bvh: bool = False
     _max_nodes: int = 0
@@ -153,6 +159,11 @@ class Renderer:
                 np.ascontiguousarray(glm.mat4(1.0), dtype=np.float32)
             ),
         }
+
+    def load_gaussian(self, gaussian: GaussianSplat) -> None:
+        # load a single gaussian splat into renderer
+        self._gaussian_buf = gaussian.gaussians
+        self._gaussian_count = gaussian.num_gaussians
 
     def load_triangles(self, scene: Scene) -> None:
         """Load a scene into the renderer."""
@@ -294,6 +305,9 @@ class Renderer:
             }
         if self._surface_volume_buf is not None:
             uniforms["surfaceVolumeBuf"] = self._surface_volume_buf
+        if self._gaussian_buf is not None:
+            uniforms["gaussianBuf"] = self._gaussian_buf
+            uniforms["gaussianCount"] = self._gaussian_count
         if self._bvh_node_buf is not None:
             uniforms["bvh"] = {
                 "nodes": self._bvh_node_buf,
@@ -314,6 +328,74 @@ class Renderer:
         uniforms["sdfBuf"] = sdf_uniforms
         return uniforms
 
+    def render_gaussians(
+        self,
+        view_mat: glm.mat4,
+        fov: float
+    ) -> None:
+        uniforms = self._build_render_uniforms(
+            view_mat=view_mat,
+            fov=fov
+        )
+
+        pixels_touched = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.int32)
+        pixel_ranges_touched = torch.zeros((self._gaussian_count, 4), device=self._device, dtype=torch.int32)
+        radii = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.int32)
+        centers = torch.zeros((self._gaussian_count, 3), device=self._device, dtype=torch.float)
+        inv_cov2Ds = torch.zeros((self._gaussian_count, 2, 2), device=self._device, dtype=torch.float)
+        rgbs = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.float)
+
+        self.renderer_module.preprocessGaussians(
+            tid=spy.grid(shape=(self._gaussian_count)),
+            uniforms=uniforms,
+            pixels_touched=pixels_touched,
+            pixel_ranges_touched=pixel_ranges_touched,
+            radii=radii,
+            centers=centers,
+            inv_cov2Ds=inv_cov2Ds,
+            rgbs=rgbs
+        )
+
+        # 3. resort array into pixel -> gaussians by depth array
+        # turn pixels_touched and pixel_ranges_touched into (pixel num, gaussian center Z, gaussian idx) trios
+        # count how many gaussians per pixel num
+        # sort whole array by pixel_num, then increasing depth
+        # make array of pixels -> gaussians per pixel
+
+        # for now, just do on CPU very ratchetly
+
+        pixel_trios = []
+        num_pixels = self._render_target.width * self._render_target.height
+        gaussians_per_pixel = [0 for i in range(num_pixels)]
+        for i in range(self._gaussian_count):
+            for x in range(pixel_ranges_touched[i, 0], pixel_ranges_touched[i, 1]):
+                for y in range(pixel_ranges_touched[i, 2], pixel_ranges_touched[i, 3]):
+                    pixel_trios.append([y * self._render_target.width + x, centers[(i, 2)], i])
+                    gaussians_per_pixel[y * self._render_target.width + x] += 1
+        pixel_trios.sort(key=lambda t: (t[0], t[1]))
+        gaussian_idxs = torch.tensor(
+            [t[2] for t in pixel_trios],
+            dtype=torch.int32,
+            device=self._device
+        ).contiguous()
+
+        pixel_prefix_sums = torch.zeros(num_pixels + 1, dtype=torch.int32, device=self._device)
+        pixel_prefix_sums[1:] = torch.cumsum(gaussians_per_pixel, dim=0)
+
+        # for each pixel in parallel:
+            # get gaussians that affect pixel
+            # evaluate gaussian density based on inverse cov2D
+            # alpha composite front-to-back
+            # exit early if opaque
+        self.renderer_module.renderGaussians(
+            tid=spy.grid(shape=(self._render_target.height, self._render_target.width)),
+            uniforms=uniforms,
+            _result=self._render_target,
+            gaussian_idxs=gaussian_idxs,
+            pixel_prefix_sums=pixel_prefix_sums,
+            rgbs=rgbs
+        )
+        
     def render(
         self,
         view_mat: glm.mat4,

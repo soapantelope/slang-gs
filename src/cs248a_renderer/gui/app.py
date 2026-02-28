@@ -98,6 +98,7 @@ class InteractiveRendererApp(App):
 
     _on_load_mesh: Subject[None] = Subject()
     _on_load_volume: Subject[None] = Subject()
+    _on_load_gaussian: Subject[None] = Subject()
 
     _mesh_outdated: BehaviorSubject[bool] = BehaviorSubject(True)
     _build_bvh_request: Subject[None] = Subject()
@@ -118,6 +119,9 @@ class InteractiveRendererApp(App):
         self._on_load_mesh.subscribe(lambda _: asyncio.create_task(self._load_mesh()))
         self._on_load_volume.subscribe(
             lambda _: asyncio.create_task(self._load_volume())
+        )
+        self._on_load_gaussian.subscribe(
+            lambda _: asyncio.create_task(self._load_gaussian())
         )
         self._build_bvh_request.subscribe(
             lambda _: asyncio.create_task(self.build_bvh(1024))
@@ -244,6 +248,11 @@ class InteractiveRendererApp(App):
         volume_path = await self._choose_file(filters=["Numpy Files", "*.npy"])
         if volume_path is not None:
             self.scene_manager.load_volume(volume_path=volume_path)
+
+    async def _load_gaussian(self) -> None:
+        gaussian_path = await self._choose_file(filters=["Point Cloud Files", "*.ply"])
+        if gaussian_path is not None:
+            self.scene_manager.load_gaussian(gaussian_path=gaussian_path)
 
     async def _choose_file(self, filters: list[str] = []) -> Path | None:
         files = await async_file_dialog(

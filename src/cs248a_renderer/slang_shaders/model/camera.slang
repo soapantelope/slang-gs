@@ -26,4 +26,8 @@ public struct Camera
         return ray.transform(invViewMatrix);
         // TODO: Student implementation ends here.
     }
+
+    public float2 ndcToPixel(float3 ndc) {
+        return float2(6.0, 6.0);
+    }
 }

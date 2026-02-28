@@ -18,7 +18,7 @@ from cs248a_renderer.model.transforms import Transform3D
 from cs248a_renderer.model.ray_marcher_config import RayMarcherConfig
 from cs248a_renderer.model.scene_object import get_next_scene_object_index
 from cs248a_renderer.model.mesh import Mesh
-
+from cs248a_renderer.model.gaussian_splat import GaussianSplat
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,12 @@ class SceneManager:
         )
         self.scene.single_volume = volume
         logger.info(f"Added volume to scene")
+
+    def load_gaussian(self, gaussian_path: Path) -> None:
+        logger.info(f"loading single gaussian splat from {gaussian_path}")
+        gaussian = GaussianSplat(path=gaussian_path)
+        self.scene.gaussian = gaussian
+        logger.info(f"added gaussian splat to scene")
 
     def create_nerf_from_numpy(
         self, module: spy.Module, nerf_path: Path, properties: NeRFProperties

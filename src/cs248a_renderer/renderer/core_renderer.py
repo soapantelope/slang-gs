@@ -252,6 +252,7 @@ class Renderer:
     def _build_render_uniforms(
         self,
         view_mat: glm.mat4,
+        proj_mat: glm.mat4,
         fov: float,
         render_depth: bool = False,
         render_normal: bool = False,
@@ -268,6 +269,9 @@ class Renderer:
             "camera": {
                 "invViewMatrix": np.ascontiguousarray(
                     glm.inverse(view_mat), dtype=np.float32
+                ),
+                "viewMatrix": np.ascontiguousarray(
+                    view_mat, dtype=np.float32
                 ),
                 "canvasSize": [
                     self._render_target.width,
@@ -289,6 +293,10 @@ class Renderer:
             "visualizeLevelOfDetail": visualize_level_of_detail,
             "visualizeAlbedo": visualize_albedo,
         }
+        if proj_mat is not None:
+            uniforms["camera"]["projMatrix"] = np.ascontiguousarray(
+                proj_mat, dtype=np.float32
+            )
         if self._physics_based_material_texture_buf is not None:
             uniforms["physicsBasedMaterialTextureBuf"] = {
                 "albedoTexBuf": {
@@ -331,22 +339,24 @@ class Renderer:
     def render_gaussians(
         self,
         view_mat: glm.mat4,
+        proj_mat: glm.mat4,
         fov: float
     ) -> None:
         uniforms = self._build_render_uniforms(
             view_mat=view_mat,
+            proj_mat=proj_mat,
             fov=fov
         )
+        pixels_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
+        pixel_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
+        radii = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
+        centers = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
+        inv_cov2Ds = spy.NDBuffer(device=self._device, dtype=self.model_module.float2x2, shape=(self._gaussian_count,))
+        rgbs = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
 
-        pixels_touched = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.int32)
-        pixel_ranges_touched = torch.zeros((self._gaussian_count, 4), device=self._device, dtype=torch.int32)
-        radii = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.int32)
-        centers = torch.zeros((self._gaussian_count, 3), device=self._device, dtype=torch.float)
-        inv_cov2Ds = torch.zeros((self._gaussian_count, 2, 2), device=self._device, dtype=torch.float)
-        rgbs = torch.zeros((self._gaussian_count), device=self._device, dtype=torch.float)
-
+        print("preprocessing gaussians")
         self.renderer_module.preprocessGaussians(
-            tid=spy.grid(shape=(self._gaussian_count)),
+            tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
             pixels_touched=pixels_touched,
             pixel_ranges_touched=pixel_ranges_touched,
@@ -357,42 +367,53 @@ class Renderer:
         )
 
         # 3. resort array into pixel -> gaussians by depth array
-        # turn pixels_touched and pixel_ranges_touched into (pixel num, gaussian center Z, gaussian idx) trios
-        # count how many gaussians per pixel num
-        # sort whole array by pixel_num, then increasing depth
-        # make array of pixels -> gaussians per pixel
+            # turn pixels_touched and pixel_ranges_touched into (pixel num, gaussian center Z, gaussian idx) trios
+            # count how many gaussians per pixel num
+            # sort whole array by pixel_num, then inscreasing depth
+            # make array of pixels -> gaussians per pixel
 
-        # for now, just do on CPU very ratchetly
+        print("sorting gaussians")
+        # total_pixels_touched = np.sum(pixels_touched.to_numpy())
+        # pix_and_depth_keys_buf = spy.NDBuffer(device=self.device, dtype=self.model_module.int64_t, shape=(total_pixels_touched,))
+        # gauss_idx_buf = spy.NDBuffer(device=self.device, dtype=self.model_module.int64_t, shape=(total_pixels_touched,))
+
+        pixel_ranges_np = pixel_ranges_touched.to_numpy()
+        centers_np = centers.to_numpy()
 
         pixel_trios = []
         num_pixels = self._render_target.width * self._render_target.height
         gaussians_per_pixel = [0 for i in range(num_pixels)]
         for i in range(self._gaussian_count):
-            for x in range(pixel_ranges_touched[i, 0], pixel_ranges_touched[i, 1]):
-                for y in range(pixel_ranges_touched[i, 2], pixel_ranges_touched[i, 3]):
-                    pixel_trios.append([y * self._render_target.width + x, centers[(i, 2)], i])
+            for x in range(int(pixel_ranges_np[i, 0]), int(pixel_ranges_np[i, 1])):
+                for y in range(int(pixel_ranges_np[i, 2]), int(pixel_ranges_np[i, 3])):
+                    pixel_trios.append([y * self._render_target.width + x, centers_np[i, 2], i])
                     gaussians_per_pixel[y * self._render_target.width + x] += 1
         pixel_trios.sort(key=lambda t: (t[0], t[1]))
-        gaussian_idxs = torch.tensor(
-            [t[2] for t in pixel_trios],
-            dtype=torch.int32,
-            device=self._device
-        ).contiguous()
 
-        pixel_prefix_sums = torch.zeros(num_pixels + 1, dtype=torch.int32, device=self._device)
-        pixel_prefix_sums[1:] = torch.cumsum(gaussians_per_pixel, dim=0)
+        gaussian_idxs_np = np.array(
+            [t[2] for t in pixel_trios], dtype=np.int32
+        )
+        gaussian_idxs = spy.NDBuffer(
+            device=self._device, dtype=self.model_module.int,
+            shape=(max(len(gaussian_idxs_np), 1),)
+        )
+        gaussian_idxs.copy_from_numpy(gaussian_idxs_np)
 
-        # for each pixel in parallel:
-            # get gaussians that affect pixel
-            # evaluate gaussian density based on inverse cov2D
-            # alpha composite front-to-back
-            # exit early if opaque
+        pixel_prefix_sums_np = np.zeros(num_pixels + 1, dtype=np.int32)
+        pixel_prefix_sums_np[1:] = np.cumsum(gaussians_per_pixel)
+        print(pixel_prefix_sums_np)
+        pixel_prefix_sums = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels + 1,))
+        pixel_prefix_sums.copy_from_numpy(pixel_prefix_sums_np)
+
+        print("rendering gaussians")
         self.renderer_module.renderGaussians(
             tid=spy.grid(shape=(self._render_target.height, self._render_target.width)),
             uniforms=uniforms,
             _result=self._render_target,
             gaussian_idxs=gaussian_idxs,
             pixel_prefix_sums=pixel_prefix_sums,
+            inv_cov2Ds=inv_cov2Ds,
+            centers=centers,
             rgbs=rgbs
         )
         

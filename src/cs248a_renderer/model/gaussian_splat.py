@@ -17,6 +17,7 @@ class GaussianSplat():
         self._model_module = spy.Module.load_from_file(
             device=device, path="model.slang", link=[self._math_module]
         )
+        print("parsing ply")
         point_cloud = PyntCloud.from_file(str(path.resolve()))
         points: pd.DataFrame = point_cloud.points
         self.num_gaussians = len(points)
@@ -70,7 +71,7 @@ class GaussianSplat():
         )
         self._model_module.unpackGaussianSplat(
             tid=spy.grid(shape=(self.num_gaussians,)),
-            soaSplat={
+            soa={
                 "positions": position_buf,
                 "rotations": rotation_buf,
                 "scales": scale_buf,

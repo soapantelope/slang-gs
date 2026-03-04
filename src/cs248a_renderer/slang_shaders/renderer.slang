@@ -82,12 +82,12 @@ public float4 render(uint2 tid, RendererUniform uniforms)
 public void preprocessGaussians(
     uint tid, 
     RendererUniform uniforms,
-    TensorView<int32_t> pixels_touched,
-    TensorView<int32_t> pixel_ranges_touched,
-    TensorView<int32_t> radii,
-    TensorView<float> centers,
-    TensorView<float> inv_cov2Ds,
-    TensorView<float> rgbs
+    RWStructuredBuffer<int> pixels_touched,
+    RWStructuredBuffer<int4> pixel_ranges_touched,
+    RWStructuredBuffer<int> radii,
+    RWStructuredBuffer<float3> centers,
+    RWStructuredBuffer<float2x2> inv_cov2Ds,
+    RWStructuredBuffer<float3> rgbs
 )
 {
     Gaussian gaussian = uniforms.gaussianBuf[tid];
@@ -95,62 +95,56 @@ public void preprocessGaussians(
     // compute spherical harmonic color
     float3 rgb = gaussian.computeSHColor(uniforms.camera);
 
-    // project center to screen
-    float3 pixel_center = gaussian.projectPoint(uniforms.camera);
+    // project center to screen space (NDC)
+    float3 screen_center = gaussian.projectPoint(uniforms.camera);
 
     // compute cov3D -> cov2D
     float3x3 cov3D = gaussian.getCov3D();
     float2x2 cov2D = gaussian.cov3Dto2D(cov3D, uniforms.camera);
 
     // estimate pixel radius
-    int pixel_radius = gaussian.getPixelRadius(cov2D);
+    float pixel_radius = gaussian.getPixelRadius(cov2D);
 
     // compute inverse cov2D
     float2x2 invCov2D = gaussian.invertCov2D(cov2D);
 
+    // 0.5 to dim + 0.5
+    float2 pixel_center = uniforms.camera.ndcToPixel(screen_center);
     RectBounds bounds = gaussian.getRectBounds(uniforms.camera, pixel_center, pixel_radius);
 
     // store this data for rasterization
     pixels_touched[tid] = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
-
-    pixel_ranges_touched[uint2(tid, 0)] = bounds.minX;
-    pixel_ranges_touched[uint2(tid, 1)] = bounds.maxX;
-    pixel_ranges_touched[uint2(tid, 2)] = bounds.minY;
-    pixel_ranges_touched[uint2(tid, 3)] = bounds.maxY;
-
-    radii[tid] = pixel_radius;
-
-    centers[uint2(tid, 0)] = pixel_center.x;
-    centers[uint2(tid, 1)] = pixel_center.y;
-    centers[uint2(tid, 2)] = pixel_center.z;
-
-    inv_cov2Ds[uint3(tid, 0, 0)] = invCov2D[0][0];
-    inv_cov2Ds[uint3(tid, 0, 1)] = invCov2D[0][1];
-    inv_cov2Ds[uint3(tid, 1, 0)] = invCov2D[1][0];
-    inv_cov2Ds[uint3(tid, 1, 1)] = invCov2D[1][1];
-
-    rgbs[uint2(tid, 0)] = rgb.x;
-    rgbs[uint2(tid, 1)] = rgb.y;
-    rgbs[uint2(tid, 2)] = rgb.z;
+    pixel_ranges_touched[tid] = int4(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+    radii[tid] = (uint32_t) pixel_radius;
+    centers[tid] = screen_center;
+    inv_cov2Ds[tid] = invCov2D;
+    rgbs[tid] = rgb;
 }
 
 // tid is pixel coordinate
 public float4 renderGaussians(
     uint2 tid, 
     RendererUniform uniforms, 
-    TensorView<int32_t> gaussian_idxs, 
-    TensorView<int32_t> pixel_prefix_sums,
-    TensorView<float> rgbs
+    StructuredBuffer<int> gaussian_idxs, 
+    StructuredBuffer<int> pixel_prefix_sums,
+    StructuredBuffer<float2x2> inv_cov2Ds,
+    StructuredBuffer<float3> centers,
+    StructuredBuffer<float3> rgbs
 )
 {
-    // get gaussians that affect pixel
-    float4 color = float4(0.0, 0.0, 0.0, 0.0);
-    uint pixel_idx = tid.x * uniforms.camera.canvasSize.x + tid.y;
+    float opacity = 1.0;
+    float4 color = float4(0.0, 0.0, 0.0, opacity);
+    uint pixel_idx = tid.y * uniforms.camera.canvasSize.x + tid.x;
     for (int i = pixel_prefix_sums[pixel_idx]; i < pixel_prefix_sums[pixel_idx + 1]; i++) {
-        // evaluate gaussian density based on inverse cov2D
-        // alpha composite front-to-back
-        // exit early if opaque
-        color = float4(rgbs[(i, 0)], rgbs[(i, 1)], rgbs[(i, 2)], uniforms.gaussianBuf[i].opacity);
+        int gaussian_idx = gaussian_idxs[i];
+        Gaussian gaussian = uniforms.gaussianBuf[gaussian_idx];
+
+        float2 gaussian_screen_center = uniforms.camera.ndcToPixel(centers[gaussian_idx]);
+        float2 x = float2(tid.x - gaussian_screen_center.x, tid.y - gaussian_screen_center.y);
+        float gaussian_opacity = exp(-0.5 * dot(x, mul(inv_cov2Ds[gaussian_idx], x))) * gaussian.opacity;
+
+        float4 premultiplied_gauss_color = float4(gaussian.color * gaussian_opacity, gaussian_opacity);
+        color = premultiplied_gauss_color + (1 - gaussian_opacity) * color;
     }
     return color;
 }

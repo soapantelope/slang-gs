@@ -5,7 +5,10 @@ public struct Camera
 {
     // The inverse view matrix of the camera (matrix transform from view space to world space).
     public float4x4 invViewMatrix;
-    // The canvas size of the target image in pixels.
+    // world to camera view space
+    public float4x4 viewMatrix;
+    public float4x4 projMatrix;
+    // The canvas size of the target image in pixels. W, H
     public uint2 canvasSize;
     // The focal length of the camera in pixels (distance between the pinhole and the image plane).
     public float focalLength;
@@ -27,7 +30,13 @@ public struct Camera
         // TODO: Student implementation ends here.
     }
 
+    public float2 getFOV() {
+        float x = 2.0 * atan(0.5 * canvasSize.x  / focalLength);
+        float y = 2.0 * atan(0.5 * canvasSize.y / focalLength);
+        return float2(x, y);
+    }
+
     public float2 ndcToPixel(float3 ndc) {
-        return float2(6.0, 6.0);
+        return ((ndc.xy + 1.0) * canvasSize) * 0.5;
     }
 }

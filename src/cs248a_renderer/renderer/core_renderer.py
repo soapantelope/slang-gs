@@ -1,6 +1,7 @@
 """
 Core rendering module
 """
+import time
 
 import slangpy as spy
 from typing import Tuple, List, Dict
@@ -342,11 +343,18 @@ class Renderer:
         proj_mat: glm.mat4,
         fov: float
     ) -> None:
+        
+        # TODO: use tiles instead of pixels, figure out thread groups(?)
+
+        print("building uniforms")
         uniforms = self._build_render_uniforms(
             view_mat=view_mat,
             proj_mat=proj_mat,
             fov=fov
         )
+
+        total_start_time = time.perf_counter()
+
         pixels_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
         pixel_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
         radii = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
@@ -366,18 +374,11 @@ class Renderer:
             rgbs=rgbs
         )
 
-        # 3. resort array into pixel -> gaussians by depth array
-            # turn pixels_touched and pixel_ranges_touched into (pixel num, gaussian center Z, gaussian idx) trios
-            # count how many gaussians per pixel num
-            # sort whole array by pixel_num, then inscreasing depth
-            # make array of pixels -> gaussians per pixel
-
-        print("sorting gaussians")
         num_pixels = self._render_target.height * self._render_target.width;
 
         pixels_touched_np = pixels_touched.to_numpy()
         total_pixels_touched = int(np.sum(pixels_touched_np))
-        print(total_pixels_touched)
+        print("total pixel-gaussian intersections: " + str(total_pixels_touched))
 
         pixels_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
         pixels_touched_prefix_sum_np[1:] = np.cumsum(pixels_touched_np)
@@ -387,6 +388,7 @@ class Renderer:
         pix_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_pixels_touched,))
         gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
 
+        print("making keys")
         self.renderer_module.makeDict(
             tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
@@ -397,8 +399,12 @@ class Renderer:
             gauss_idx_vals_buf=gauss_idx_vals_buf
         )
 
+        # start part to parallelize TODO: radix sort them instead?
         pix_and_depth_keys_buf_np = pix_and_depth_keys_buf.to_numpy()
         gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
+
+        print("sorting gaussians")
+        sort_start_time = time.perf_counter()
 
         idxs = np.argsort(pix_and_depth_keys_buf_np)
         sorted_pix_and_depth_keys_buf_np = pix_and_depth_keys_buf_np[idxs]
@@ -409,10 +415,17 @@ class Renderer:
         sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
         sorted_gauss_idx_vals_buf.copy_from_numpy(sorted_gauss_idx_vals_buf_np)
 
+        sort_end_time = time.perf_counter()
+        print(str(sort_end_time - sort_start_time) + " seconds to sort")
+
+        # end part to parallelize (rn takes 5 seconds rip)
+        
         pixel_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
         pixel_range_starts.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
         pixel_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
         pixel_range_ends.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
+
+        print("calculating pixel ranges")
         self.renderer_module.prefixSumPixels(
             tid=spy.grid(shape=(total_pixels_touched,)),
             total_pixels_touched=total_pixels_touched,
@@ -433,6 +446,9 @@ class Renderer:
             centers=centers,
             rgbs=rgbs
         )
+
+        total_end_time = time.perf_counter()
+        print(str(total_end_time - total_start_time) + " seconds for the entire render process")
         
     def render(
         self,

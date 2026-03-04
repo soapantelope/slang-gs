@@ -43,7 +43,7 @@ class GaussianSplat():
         )
         rotation_buf.copy_from_numpy(rotations)
         scales = np.ascontiguousarray(
-            points[["scale_0", "scale_1", "scale_2"]].to_numpy()
+            np.exp(points[["scale_0", "scale_1", "scale_2"]].to_numpy())
         )
         scale_buf = spy.NDBuffer(
             device=device,
@@ -58,7 +58,8 @@ class GaussianSplat():
             shape=(self.num_gaussians,),
         )
         color_buf.copy_from_numpy(colors)
-        opacities = np.ascontiguousarray(points["opacity"].to_numpy())
+        raw_opacities = points["opacity"].to_numpy()
+        opacities = np.ascontiguousarray(1.0 / (1.0 + np.exp(-raw_opacities)))
         opacity_buf = spy.NDBuffer(
             device=device,
             dtype=self._model_module.float,

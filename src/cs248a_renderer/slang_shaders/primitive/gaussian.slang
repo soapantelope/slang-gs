@@ -10,7 +10,7 @@ public struct Gaussian
     public float opacity;
 
     public float3 computeSHColor(Camera cam) {
-        return color;
+        return clamp(color + float3(0.2, 0.2, 0.2), 0.0, 1.0);
     }
 
     public float3 mul_homogeneous(float4x4 mat, float3 vec) {
@@ -96,10 +96,10 @@ public struct Gaussian
 
     public RectBounds getRectBounds(Camera cam, float2 pixel_center, float pixel_radius) {
         return new RectBounds(
-            clamp(uint(pixel_center.x - pixel_radius), 0.0, cam.canvasSize.x), 
-            clamp(uint(pixel_center.x + pixel_radius), 0.0, cam.canvasSize.x),
-            clamp(uint(pixel_center.y - pixel_radius), 0.0, cam.canvasSize.y), 
-            clamp(uint(pixel_center.y + pixel_radius), 0.0, cam.canvasSize.y)
+            (int) floor(clamp(pixel_center.x - pixel_radius, 0.0, cam.canvasSize.x)), 
+            (int) ceil(clamp(pixel_center.x + pixel_radius, 0.0, cam.canvasSize.x)),
+            (int) floor(clamp(pixel_center.y - pixel_radius, 0.0, cam.canvasSize.y)), 
+            (int) ceil(clamp(pixel_center.y + pixel_radius, 0.0, cam.canvasSize.y))
         );
     }
 

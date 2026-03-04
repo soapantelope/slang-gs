@@ -92,15 +92,20 @@ public void preprocessGaussians(
 {
     Gaussian gaussian = uniforms.gaussianBuf[tid];
 
-    // compute spherical harmonic color
-    float3 rgb = gaussian.computeSHColor(uniforms.camera);
+    pixels_touched[tid] = 0;
+    pixel_ranges_touched[tid] = int4(0, 0, 0, 0);
 
     // project center to screen space (NDC)
     float3 screen_center = gaussian.projectPoint(uniforms.camera);
+    if (screen_center.z >= -0.1) return;
+
+    // compute spherical harmonic color
+    float3 rgb = gaussian.computeSHColor(uniforms.camera);
 
     // compute cov3D -> cov2D
     float3x3 cov3D = gaussian.getCov3D();
     float2x2 cov2D = gaussian.cov3Dto2D(cov3D, uniforms.camera);
+    if (gaussian.getDet2D(cov2D) <= 0.0) return;
 
     // estimate pixel radius
     float pixel_radius = gaussian.getPixelRadius(cov2D);
@@ -126,7 +131,8 @@ public float4 renderGaussians(
     uint2 tid, 
     RendererUniform uniforms, 
     StructuredBuffer<int> gaussian_idxs, 
-    StructuredBuffer<int> pixel_prefix_sums,
+    StructuredBuffer<int> pixel_range_starts,
+    StructuredBuffer<int> pixel_range_ends,
     StructuredBuffer<float2x2> inv_cov2Ds,
     StructuredBuffer<float3> centers,
     StructuredBuffer<float3> rgbs
@@ -135,16 +141,64 @@ public float4 renderGaussians(
     float opacity = 1.0;
     float4 color = float4(0.0, 0.0, 0.0, opacity);
     uint pixel_idx = tid.y * uniforms.camera.canvasSize.x + tid.x;
-    for (int i = pixel_prefix_sums[pixel_idx]; i < pixel_prefix_sums[pixel_idx + 1]; i++) {
+    for (int i = pixel_range_starts[pixel_idx]; i < pixel_range_ends[pixel_idx]; i++) {
         int gaussian_idx = gaussian_idxs[i];
         Gaussian gaussian = uniforms.gaussianBuf[gaussian_idx];
+        float3 gaussian_color = rgbs[gaussian_idx];
 
         float2 gaussian_screen_center = uniforms.camera.ndcToPixel(centers[gaussian_idx]);
         float2 x = float2(tid.x - gaussian_screen_center.x, tid.y - gaussian_screen_center.y);
         float gaussian_opacity = exp(-0.5 * dot(x, mul(inv_cov2Ds[gaussian_idx], x))) * gaussian.opacity;
-
-        float4 premultiplied_gauss_color = float4(gaussian.color * gaussian_opacity, gaussian_opacity);
+        float4 premultiplied_gauss_color = float4(gaussian_color * gaussian_opacity, gaussian_opacity);
         color = premultiplied_gauss_color + (1 - gaussian_opacity) * color;
     }
     return color;
+}
+
+public void makeDict(
+    uint tid,
+    RendererUniform uniforms,
+    StructuredBuffer<int> pixels_touched_prefix_sum,
+    StructuredBuffer<int4> pixel_ranges_touched,
+    StructuredBuffer<float3> centers,
+    RWStructuredBuffer<uint64_t> pix_and_depth_keys_buf,
+    RWStructuredBuffer<int> gauss_idx_vals_buf
+) {
+    int start_idx = pixels_touched_prefix_sum[tid];
+    int4 pixel_range_touched = pixel_ranges_touched[tid];
+
+    for (int i = pixel_range_touched.x; i < pixel_range_touched.y; i++) {
+        for (int j = pixel_range_touched.z; j < pixel_range_touched.w; j++) {
+            uint64_t pixel_idx = j * uniforms.camera.canvasSize.x + i;
+            pixel_idx <<= 32;
+            uint32_t depth = ~reinterpret<uint32_t>(-centers[tid].z);
+            uint64_t key = pixel_idx | depth;
+            pix_and_depth_keys_buf[start_idx] = key;
+            gauss_idx_vals_buf[start_idx] = tid;
+
+            start_idx++;
+        }
+    }
+}
+
+public void prefixSumPixels(
+    uint tid, // index of the key
+    int total_pixels_touched,
+    StructuredBuffer<uint64_t> sorted_pix_and_depth_keys_buf,
+    RWStructuredBuffer<int> pixel_range_starts,
+    RWStructuredBuffer<int> pixel_range_ends,
+) {
+    uint32_t pixel_idx_touched = (uint32_t) (sorted_pix_and_depth_keys_buf[tid] >> 32);
+    if (tid == 0) {
+        pixel_range_starts[pixel_idx_touched] = 0;
+    } else {
+        uint32_t prev_pix_idx_touched = (uint32_t) (sorted_pix_and_depth_keys_buf[tid - 1] >> 32);
+        if (pixel_idx_touched != prev_pix_idx_touched) {
+            pixel_range_ends[prev_pix_idx_touched] = tid;
+            pixel_range_starts[pixel_idx_touched] = tid;
+        }
+    }
+    if (tid == total_pixels_touched - 1) {
+        pixel_range_ends[pixel_idx_touched] = tid + 1;
+    }
 }

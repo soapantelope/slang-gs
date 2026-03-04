@@ -30,11 +30,11 @@ renderer.sqrt_spp = 1
 renderer._ambientColor = glm.vec4(0.0, 0.0, 0.0, 0.0)
 
 cam = PerspectiveCamera()
-cam_pos = glm.vec3(0, 0, 1) * 5
+cam_pos = glm.vec3(2, 2, -2)
 cam.transform.position = cam_pos
 cam.transform.rotation = glm.quatLookAt(glm.normalize(-cam_pos), glm.vec3(0.0, 1.0, 0.0))
 
-gaussian = GaussianSplat(device=device, path=Path("../resources/test.ply"))
+gaussian = GaussianSplat(device=device, path=Path("../resources/bonsai.ply"))
 renderer.load_gaussian(gaussian=gaussian)
 
 renderer.sqrt_spp = 1
@@ -44,5 +44,6 @@ renderer.render_gaussians(
     cam.fov
 )
 plt.imshow(np.flipud(output_image.to_numpy()))
+
 plt.axis('off')
 plt.show()

@@ -373,45 +373,62 @@ class Renderer:
             # make array of pixels -> gaussians per pixel
 
         print("sorting gaussians")
-        # total_pixels_touched = np.sum(pixels_touched.to_numpy())
-        # pix_and_depth_keys_buf = spy.NDBuffer(device=self.device, dtype=self.model_module.int64_t, shape=(total_pixels_touched,))
-        # gauss_idx_buf = spy.NDBuffer(device=self.device, dtype=self.model_module.int64_t, shape=(total_pixels_touched,))
+        num_pixels = self._render_target.height * self._render_target.width;
 
-        pixel_ranges_np = pixel_ranges_touched.to_numpy()
-        centers_np = centers.to_numpy()
+        pixels_touched_np = pixels_touched.to_numpy()
+        total_pixels_touched = int(np.sum(pixels_touched_np))
+        print(total_pixels_touched)
 
-        pixel_trios = []
-        num_pixels = self._render_target.width * self._render_target.height
-        gaussians_per_pixel = [0 for i in range(num_pixels)]
-        for i in range(self._gaussian_count):
-            for x in range(int(pixel_ranges_np[i, 0]), int(pixel_ranges_np[i, 1])):
-                for y in range(int(pixel_ranges_np[i, 2]), int(pixel_ranges_np[i, 3])):
-                    pixel_trios.append([y * self._render_target.width + x, centers_np[i, 2], i])
-                    gaussians_per_pixel[y * self._render_target.width + x] += 1
-        pixel_trios.sort(key=lambda t: (t[0], t[1]))
+        pixels_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
+        pixels_touched_prefix_sum_np[1:] = np.cumsum(pixels_touched_np)
+        pixels_touched_prefix_sum = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count + 1,))
+        pixels_touched_prefix_sum.copy_from_numpy(pixels_touched_prefix_sum_np)
 
-        gaussian_idxs_np = np.array(
-            [t[2] for t in pixel_trios], dtype=np.int32
+        pix_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_pixels_touched,))
+        gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
+
+        self.renderer_module.makeDict(
+            tid=spy.grid(shape=(self._gaussian_count,)),
+            uniforms=uniforms,
+            pixels_touched_prefix_sum=pixels_touched_prefix_sum,
+            pixel_ranges_touched=pixel_ranges_touched,
+            centers=centers,
+            pix_and_depth_keys_buf=pix_and_depth_keys_buf,
+            gauss_idx_vals_buf=gauss_idx_vals_buf
         )
-        gaussian_idxs = spy.NDBuffer(
-            device=self._device, dtype=self.model_module.int,
-            shape=(max(len(gaussian_idxs_np), 1),)
-        )
-        gaussian_idxs.copy_from_numpy(gaussian_idxs_np)
 
-        pixel_prefix_sums_np = np.zeros(num_pixels + 1, dtype=np.int32)
-        pixel_prefix_sums_np[1:] = np.cumsum(gaussians_per_pixel)
-        print(pixel_prefix_sums_np)
-        pixel_prefix_sums = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels + 1,))
-        pixel_prefix_sums.copy_from_numpy(pixel_prefix_sums_np)
+        pix_and_depth_keys_buf_np = pix_and_depth_keys_buf.to_numpy()
+        gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
+
+        idxs = np.argsort(pix_and_depth_keys_buf_np)
+        sorted_pix_and_depth_keys_buf_np = pix_and_depth_keys_buf_np[idxs]
+        sorted_gauss_idx_vals_buf_np = gauss_idx_vals_buf[idxs]
+
+        sorted_pix_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_pixels_touched,))
+        sorted_pix_and_depth_keys_buf.copy_from_numpy(sorted_pix_and_depth_keys_buf_np)
+        sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
+        sorted_gauss_idx_vals_buf.copy_from_numpy(sorted_gauss_idx_vals_buf_np)
+
+        pixel_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
+        pixel_range_starts.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
+        pixel_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
+        pixel_range_ends.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
+        self.renderer_module.prefixSumPixels(
+            tid=spy.grid(shape=(total_pixels_touched,)),
+            total_pixels_touched=total_pixels_touched,
+            sorted_pix_and_depth_keys_buf=sorted_pix_and_depth_keys_buf,
+            pixel_range_starts=pixel_range_starts,
+            pixel_range_ends=pixel_range_ends,
+        )
 
         print("rendering gaussians")
         self.renderer_module.renderGaussians(
             tid=spy.grid(shape=(self._render_target.height, self._render_target.width)),
             uniforms=uniforms,
             _result=self._render_target,
-            gaussian_idxs=gaussian_idxs,
-            pixel_prefix_sums=pixel_prefix_sums,
+            gaussian_idxs=sorted_gauss_idx_vals_buf,
+            pixel_range_starts=pixel_range_starts,
+            pixel_range_ends=pixel_range_ends,
             inv_cov2Ds=inv_cov2Ds,
             centers=centers,
             rgbs=rgbs

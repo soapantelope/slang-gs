@@ -49,7 +49,7 @@ def read_splat_file(filepath):
                 
                 splat_info = {
                     'x': pos_x,
-                    'y': pos_y,
+                    'y': -pos_y,
                     'z': pos_z,
                     'opacity': opacity,
                     'rot_0': rot_0,

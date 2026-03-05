@@ -94,15 +94,14 @@ public struct Gaussian
         return ceil(3.0 * sqrt(max(eigenvalue_1, eigenvalue_2)));
     }
 
-    public RectBounds getRectBounds(Camera cam, float2 pixel_center, float pixel_radius) {
+    public RectBounds getRectTileBounds(Camera cam, float2 pixel_center, float pixel_radius) {
         return new RectBounds(
-            (int) floor(clamp(pixel_center.x - pixel_radius, 0.0, cam.canvasSize.x)), 
-            (int) ceil(clamp(pixel_center.x + pixel_radius, 0.0, cam.canvasSize.x)),
-            (int) floor(clamp(pixel_center.y - pixel_radius, 0.0, cam.canvasSize.y)), 
-            (int) ceil(clamp(pixel_center.y + pixel_radius, 0.0, cam.canvasSize.y))
+            (int) floor(clamp((pixel_center.x - pixel_radius) / cam.getTileDims().x, 0.0, cam.num_tiles.x)), 
+            (int) ceil(clamp((pixel_center.x + pixel_radius) / cam.getTileDims().x, 0.0, cam.num_tiles.x)),
+            (int) floor(clamp((pixel_center.y - pixel_radius) / cam.getTileDims().y, 0.0, cam.num_tiles.y)), 
+            (int) ceil(clamp((pixel_center.y + pixel_radius) / cam.getTileDims().y, 0.0, cam.num_tiles.y))
         );
     }
-
 }
 
 public struct RectBounds {

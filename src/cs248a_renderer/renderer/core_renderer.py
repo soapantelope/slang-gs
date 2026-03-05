@@ -254,6 +254,7 @@ class Renderer:
         self,
         view_mat: glm.mat4,
         proj_mat: glm.mat4,
+        num_tiles: glm.ivec2,
         fov: float,
         render_depth: bool = False,
         render_normal: bool = False,
@@ -298,6 +299,10 @@ class Renderer:
             uniforms["camera"]["projMatrix"] = np.ascontiguousarray(
                 proj_mat, dtype=np.float32
             )
+        if num_tiles is not None:
+            uniforms["camera"]["num_tiles"] = np.ascontiguousarray(
+                num_tiles, dtype=np.int32
+            )
         if self._physics_based_material_texture_buf is not None:
             uniforms["physicsBasedMaterialTextureBuf"] = {
                 "albedoTexBuf": {
@@ -341,22 +346,24 @@ class Renderer:
         self,
         view_mat: glm.mat4,
         proj_mat: glm.mat4,
+        num_tiles: glm.ivec2,
         fov: float
     ) -> None:
         
-        # TODO: use tiles instead of pixels, figure out thread groups(?)
+        # TODO: use tiles instead of tiles, figure out thread groups(?)
 
         print("building uniforms")
         uniforms = self._build_render_uniforms(
             view_mat=view_mat,
             proj_mat=proj_mat,
+            num_tiles=num_tiles,
             fov=fov
         )
 
         total_start_time = time.perf_counter()
 
-        pixels_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
-        pixel_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
+        tiles_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
+        tile_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
         radii = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
         centers = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
         inv_cov2Ds = spy.NDBuffer(device=self._device, dtype=self.model_module.float2x2, shape=(self._gaussian_count,))
@@ -366,53 +373,53 @@ class Renderer:
         self.renderer_module.preprocessGaussians(
             tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
-            pixels_touched=pixels_touched,
-            pixel_ranges_touched=pixel_ranges_touched,
+            tiles_touched=tiles_touched,
+            tile_ranges_touched=tile_ranges_touched,
             radii=radii,
             centers=centers,
             inv_cov2Ds=inv_cov2Ds,
             rgbs=rgbs
         )
 
-        num_pixels = self._render_target.height * self._render_target.width;
+        total_num_tiles = num_tiles.x * num_tiles.y
 
-        pixels_touched_np = pixels_touched.to_numpy()
-        total_pixels_touched = int(np.sum(pixels_touched_np))
-        print("total pixel-gaussian intersections: " + str(total_pixels_touched))
+        tiles_touched_np = tiles_touched.to_numpy()
+        total_tiles_touched = int(np.sum(tiles_touched_np))
+        print("total tile-gaussian intersections: " + str(total_tiles_touched))
 
-        pixels_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
-        pixels_touched_prefix_sum_np[1:] = np.cumsum(pixels_touched_np)
-        pixels_touched_prefix_sum = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count + 1,))
-        pixels_touched_prefix_sum.copy_from_numpy(pixels_touched_prefix_sum_np)
+        tiles_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
+        tiles_touched_prefix_sum_np[1:] = np.cumsum(tiles_touched_np)
+        tiles_touched_prefix_sum = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count + 1,))
+        tiles_touched_prefix_sum.copy_from_numpy(tiles_touched_prefix_sum_np)
 
-        pix_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_pixels_touched,))
-        gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
+        tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
+        gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
 
         print("making keys")
         self.renderer_module.makeDict(
             tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
-            pixels_touched_prefix_sum=pixels_touched_prefix_sum,
-            pixel_ranges_touched=pixel_ranges_touched,
+            tiles_touched_prefix_sum=tiles_touched_prefix_sum,
+            tile_ranges_touched=tile_ranges_touched,
             centers=centers,
-            pix_and_depth_keys_buf=pix_and_depth_keys_buf,
+            tile_and_depth_keys_buf=tile_and_depth_keys_buf,
             gauss_idx_vals_buf=gauss_idx_vals_buf
         )
 
         # start part to parallelize TODO: radix sort them instead?
-        pix_and_depth_keys_buf_np = pix_and_depth_keys_buf.to_numpy()
+        tile_and_depth_keys_buf_np = tile_and_depth_keys_buf.to_numpy()
         gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
 
         print("sorting gaussians")
         sort_start_time = time.perf_counter()
 
-        idxs = np.argsort(pix_and_depth_keys_buf_np)
-        sorted_pix_and_depth_keys_buf_np = pix_and_depth_keys_buf_np[idxs]
+        idxs = np.argsort(tile_and_depth_keys_buf_np)
+        sorted_tile_and_depth_keys_buf_np = tile_and_depth_keys_buf_np[idxs]
         sorted_gauss_idx_vals_buf_np = gauss_idx_vals_buf[idxs]
 
-        sorted_pix_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_pixels_touched,))
-        sorted_pix_and_depth_keys_buf.copy_from_numpy(sorted_pix_and_depth_keys_buf_np)
-        sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_pixels_touched,))
+        sorted_tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
+        sorted_tile_and_depth_keys_buf.copy_from_numpy(sorted_tile_and_depth_keys_buf_np)
+        sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
         sorted_gauss_idx_vals_buf.copy_from_numpy(sorted_gauss_idx_vals_buf_np)
 
         sort_end_time = time.perf_counter()
@@ -420,18 +427,18 @@ class Renderer:
 
         # end part to parallelize (rn takes 5 seconds rip)
         
-        pixel_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
-        pixel_range_starts.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
-        pixel_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(num_pixels,))
-        pixel_range_ends.copy_from_numpy(np.zeros(num_pixels, dtype=np.int32))
+        tile_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
+        tile_range_starts.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
+        tile_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
+        tile_range_ends.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
 
-        print("calculating pixel ranges")
-        self.renderer_module.prefixSumPixels(
-            tid=spy.grid(shape=(total_pixels_touched,)),
-            total_pixels_touched=total_pixels_touched,
-            sorted_pix_and_depth_keys_buf=sorted_pix_and_depth_keys_buf,
-            pixel_range_starts=pixel_range_starts,
-            pixel_range_ends=pixel_range_ends,
+        print("calculating tile ranges")
+        self.renderer_module.prefixSumTiles(
+            tid=spy.grid(shape=(total_tiles_touched,)),
+            total_tiles_touched=total_tiles_touched,
+            sorted_tile_and_depth_keys_buf=sorted_tile_and_depth_keys_buf,
+            tile_range_starts=tile_range_starts,
+            tile_range_ends=tile_range_ends,
         )
 
         print("rendering gaussians")
@@ -440,8 +447,8 @@ class Renderer:
             uniforms=uniforms,
             _result=self._render_target,
             gaussian_idxs=sorted_gauss_idx_vals_buf,
-            pixel_range_starts=pixel_range_starts,
-            pixel_range_ends=pixel_range_ends,
+            tile_range_starts=tile_range_starts,
+            tile_range_ends=tile_range_ends,
             inv_cov2Ds=inv_cov2Ds,
             centers=centers,
             rgbs=rgbs

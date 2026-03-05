@@ -41,6 +41,7 @@ renderer.sqrt_spp = 1
 renderer.render_gaussians(
     cam.view_matrix(),
     cam.projection_matrix(OUTPUT_IMG_SIZE[0], OUTPUT_IMG_SIZE[1]),
+    glm.ivec2(32, 32),
     cam.fov
 )
 plt.imshow(np.flipud(output_image.to_numpy()))

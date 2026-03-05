@@ -13,6 +13,9 @@ public struct Camera
     // The focal length of the camera in pixels (distance between the pinhole and the image plane).
     public float focalLength;
 
+    // num tiles per dim 
+    public int2 num_tiles;
+
     /**
      * Generate a camera ray given a normalized uv coordinate on canvas.
      * @param uv The normalized uv coordinate from (0, 0) in the bottom-left to (1, 1) in the top-right.
@@ -38,5 +41,9 @@ public struct Camera
 
     public float2 ndcToPixel(float3 ndc) {
         return ((ndc.xy + 1.0) * canvasSize) * 0.5;
+    }
+
+    public float2 getTileDims() {
+        return canvasSize / num_tiles;
     }
 }

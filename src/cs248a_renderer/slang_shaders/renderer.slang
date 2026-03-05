@@ -82,8 +82,8 @@ public float4 render(uint2 tid, RendererUniform uniforms)
 public void preprocessGaussians(
     uint tid, 
     RendererUniform uniforms,
-    RWStructuredBuffer<int> pixels_touched,
-    RWStructuredBuffer<int4> pixel_ranges_touched,
+    RWStructuredBuffer<int> tiles_touched,
+    RWStructuredBuffer<int4> tile_ranges_touched,
     RWStructuredBuffer<int> radii,
     RWStructuredBuffer<float3> centers,
     RWStructuredBuffer<float2x2> inv_cov2Ds,
@@ -92,8 +92,8 @@ public void preprocessGaussians(
 {
     Gaussian gaussian = uniforms.gaussianBuf[tid];
 
-    pixels_touched[tid] = 0;
-    pixel_ranges_touched[tid] = int4(0, 0, 0, 0);
+    tiles_touched[tid] = 0;
+    tile_ranges_touched[tid] = int4(0, 0, 0, 0);
 
     // project center to screen space (NDC)
     float3 screen_center = gaussian.projectPoint(uniforms.camera);
@@ -115,11 +115,11 @@ public void preprocessGaussians(
 
     // 0.5 to dim + 0.5
     float2 pixel_center = uniforms.camera.ndcToPixel(screen_center);
-    RectBounds bounds = gaussian.getRectBounds(uniforms.camera, pixel_center, pixel_radius);
+    RectBounds bounds = gaussian.getRectTileBounds(uniforms.camera, pixel_center, pixel_radius);
 
     // store this data for rasterization
-    pixels_touched[tid] = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
-    pixel_ranges_touched[tid] = int4(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+    tiles_touched[tid] = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+    tile_ranges_touched[tid] = int4(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
     radii[tid] = (uint32_t) pixel_radius;
     centers[tid] = screen_center;
     inv_cov2Ds[tid] = invCov2D;
@@ -131,8 +131,8 @@ public float4 renderGaussians(
     uint2 tid, 
     RendererUniform uniforms, 
     StructuredBuffer<int> gaussian_idxs, 
-    StructuredBuffer<int> pixel_range_starts,
-    StructuredBuffer<int> pixel_range_ends,
+    StructuredBuffer<int> tile_range_starts,
+    StructuredBuffer<int> tile_range_ends,
     StructuredBuffer<float2x2> inv_cov2Ds,
     StructuredBuffer<float3> centers,
     StructuredBuffer<float3> rgbs
@@ -140,8 +140,10 @@ public float4 renderGaussians(
 {
     float opacity = 1.0;
     float4 color = float4(0.0, 0.0, 0.0, opacity);
-    uint pixel_idx = tid.y * uniforms.camera.canvasSize.x + tid.x;
-    for (int i = pixel_range_starts[pixel_idx]; i < pixel_range_ends[pixel_idx]; i++) {
+    uint2 tile = (uint2) ((float2) tid / uniforms.camera.getTileDims()); 
+    uint tile_idx = tile.y * uniforms.camera.num_tiles.x + tile.x;
+
+    for (int i = tile_range_starts[tile_idx]; i < tile_range_ends[tile_idx]; i++) {
         int gaussian_idx = gaussian_idxs[i];
         Gaussian gaussian = uniforms.gaussianBuf[gaussian_idx];
         float3 gaussian_color = rgbs[gaussian_idx];
@@ -158,22 +160,22 @@ public float4 renderGaussians(
 public void makeDict(
     uint tid,
     RendererUniform uniforms,
-    StructuredBuffer<int> pixels_touched_prefix_sum,
-    StructuredBuffer<int4> pixel_ranges_touched,
+    StructuredBuffer<int> tiles_touched_prefix_sum,
+    StructuredBuffer<int4> tile_ranges_touched,
     StructuredBuffer<float3> centers,
-    RWStructuredBuffer<uint64_t> pix_and_depth_keys_buf,
+    RWStructuredBuffer<uint64_t> tile_and_depth_keys_buf,
     RWStructuredBuffer<int> gauss_idx_vals_buf
 ) {
-    int start_idx = pixels_touched_prefix_sum[tid];
-    int4 pixel_range_touched = pixel_ranges_touched[tid];
+    int start_idx = tiles_touched_prefix_sum[tid];
+    int4 tile_range_touched = tile_ranges_touched[tid];
 
-    for (int i = pixel_range_touched.x; i < pixel_range_touched.y; i++) {
-        for (int j = pixel_range_touched.z; j < pixel_range_touched.w; j++) {
-            uint64_t pixel_idx = j * uniforms.camera.canvasSize.x + i;
-            pixel_idx <<= 32;
+    for (int i = tile_range_touched.x; i < tile_range_touched.y; i++) {
+        for (int j = tile_range_touched.z; j < tile_range_touched.w; j++) {
+            uint64_t tile_idx = j * uniforms.camera.num_tiles.x + i;
+            tile_idx <<= 32;
             uint32_t depth = ~reinterpret<uint32_t>(-centers[tid].z);
-            uint64_t key = pixel_idx | depth;
-            pix_and_depth_keys_buf[start_idx] = key;
+            uint64_t key = tile_idx | depth;
+            tile_and_depth_keys_buf[start_idx] = key;
             gauss_idx_vals_buf[start_idx] = tid;
 
             start_idx++;
@@ -181,24 +183,24 @@ public void makeDict(
     }
 }
 
-public void prefixSumPixels(
+public void prefixSumTiles(
     uint tid, // index of the key
-    int total_pixels_touched,
-    StructuredBuffer<uint64_t> sorted_pix_and_depth_keys_buf,
-    RWStructuredBuffer<int> pixel_range_starts,
-    RWStructuredBuffer<int> pixel_range_ends,
+    int total_tiles_touched,
+    StructuredBuffer<uint64_t> sorted_tile_and_depth_keys_buf,
+    RWStructuredBuffer<int> tile_range_starts,
+    RWStructuredBuffer<int> tile_range_ends,
 ) {
-    uint32_t pixel_idx_touched = (uint32_t) (sorted_pix_and_depth_keys_buf[tid] >> 32);
+    uint32_t tile_idx_touched = (uint32_t) (sorted_tile_and_depth_keys_buf[tid] >> 32);
     if (tid == 0) {
-        pixel_range_starts[pixel_idx_touched] = 0;
+        tile_range_starts[tile_idx_touched] = 0;
     } else {
-        uint32_t prev_pix_idx_touched = (uint32_t) (sorted_pix_and_depth_keys_buf[tid - 1] >> 32);
-        if (pixel_idx_touched != prev_pix_idx_touched) {
-            pixel_range_ends[prev_pix_idx_touched] = tid;
-            pixel_range_starts[pixel_idx_touched] = tid;
+        uint32_t prev_tile_idx_touched = (uint32_t) (sorted_tile_and_depth_keys_buf[tid - 1] >> 32);
+        if (tile_idx_touched != prev_tile_idx_touched) {
+            tile_range_ends[prev_tile_idx_touched] = tid;
+            tile_range_starts[tile_idx_touched] = tid;
         }
     }
-    if (tid == total_pixels_touched - 1) {
-        pixel_range_ends[pixel_idx_touched] = tid + 1;
+    if (tid == total_tiles_touched - 1) {
+        tile_range_ends[tile_idx_touched] = tid + 1;
     }
 }

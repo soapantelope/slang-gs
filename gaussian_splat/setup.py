@@ -30,7 +30,7 @@ renderer.sqrt_spp = 1
 renderer._ambientColor = glm.vec4(0.0, 0.0, 0.0, 0.0)
 
 cam = PerspectiveCamera()
-cam_pos = glm.vec3(2, 2, -2)
+cam_pos = glm.vec3(0, 3, -2)
 cam.transform.position = cam_pos
 cam.transform.rotation = glm.quatLookAt(glm.normalize(-cam_pos), glm.vec3(0.0, 1.0, 0.0))
 
@@ -44,7 +44,9 @@ renderer.render_gaussians(
     glm.ivec2(32, 32),
     cam.fov
 )
-plt.imshow(np.flipud(output_image.to_numpy()))
+img_data = np.flipud(output_image.to_numpy())
+plt.imshow(img_data)
+plt.imsave('output.png', img_data)
 
 plt.axis('off')
 plt.show()

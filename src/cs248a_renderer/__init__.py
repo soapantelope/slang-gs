@@ -5,6 +5,9 @@ import platform
 import slangpy as spy
 import slangpy_nn as nn
 
+import torch
+import slangtorch
+
 SHADER_PATH = Path(__file__).parent / "slang_shaders"
 
 _system = platform.system()
@@ -63,7 +66,7 @@ class RendererModules:
             path="model.slang",
             link=[self.math_module],
         )
-        self.renderer_module = spy.Module.load_from_file(
+        self.renderer_module = slangtorch.loadModule(
             device=device,
             path="renderer.slang",
             link=[

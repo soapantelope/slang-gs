@@ -85,6 +85,7 @@ public void preprocessGaussians(
     RWStructuredBuffer<int> tiles_touched,
     RWStructuredBuffer<int4> tile_ranges_touched,
     RWStructuredBuffer<int> radii,
+    RWStructuredBuffer<float> opacities,
     RWStructuredBuffer<float3> centers,
     RWStructuredBuffer<float2x2> inv_cov2Ds,
     RWStructuredBuffer<float3> rgbs
@@ -121,12 +122,13 @@ public void preprocessGaussians(
     tiles_touched[tid] = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
     tile_ranges_touched[tid] = int4(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
     radii[tid] = (uint32_t) pixel_radius;
-    centers[tid] = screen_center;
+    opacities[tid] = gaussian.opacity;
+    centers[tid] = float3(pixel_center, screen_center.z);
     inv_cov2Ds[tid] = invCov2D;
     rgbs[tid] = rgb;
 }
 
-// tid is pixel coordinate
+[numthreads(TILE_WIDTH, TILE_HEIGHT, 1)]
 public float4 renderGaussians(
     uint2 tid, 
     RendererUniform uniforms, 
@@ -135,26 +137,30 @@ public float4 renderGaussians(
     StructuredBuffer<int> tile_range_ends,
     StructuredBuffer<float2x2> inv_cov2Ds,
     StructuredBuffer<float3> centers,
-    StructuredBuffer<float3> rgbs
+    StructuredBuffer<float3> rgbs,
+    StructuredBuffer<float> opacities
 )
 {
-    float opacity = 1.0;
-    float4 color = float4(0.0, 0.0, 0.0, opacity);
-    uint2 tile = (uint2) ((float2) tid / uniforms.camera.getTileDims()); 
+    float transmittance = 1.0;
+    float3 color = float3(0.0, 0.0, 0.0);
+    uint2 tile = tid / (uint2) uniforms.camera.getTileDims(); 
     uint tile_idx = tile.y * uniforms.camera.num_tiles.x + tile.x;
 
-    for (int i = tile_range_starts[tile_idx]; i < tile_range_ends[tile_idx]; i++) {
-        int gaussian_idx = gaussian_idxs[i];
-        Gaussian gaussian = uniforms.gaussianBuf[gaussian_idx];
-        float3 gaussian_color = rgbs[gaussian_idx];
+    for (int i = tile_range_ends[tile_idx] -  1; i >= tile_range_starts[tile_idx]; i--) {
+        if (transmittance < 0.001) break;
 
-        float2 gaussian_screen_center = uniforms.camera.ndcToPixel(centers[gaussian_idx]);
+        int gaussian_idx = gaussian_idxs[i];
+        float3 gaussian_color = rgbs[gaussian_idx];
+        float gaussian_opacity = opacities[gaussian_idx];
+
+        float2 gaussian_screen_center = centers[gaussian_idx].xy;
         float2 x = float2(tid.x - gaussian_screen_center.x, tid.y - gaussian_screen_center.y);
-        float gaussian_opacity = exp(-0.5 * dot(x, mul(inv_cov2Ds[gaussian_idx], x))) * gaussian.opacity;
-        float4 premultiplied_gauss_color = float4(gaussian_color * gaussian_opacity, gaussian_opacity);
-        color = premultiplied_gauss_color + (1 - gaussian_opacity) * color;
+
+        float alpha = exp(-0.5 * dot(x, mul(inv_cov2Ds[gaussian_idx], x))) * gaussian_opacity;
+        color += transmittance * alpha * gaussian_color;
+        transmittance *= (1.0 - alpha);
     }
-    return color;
+    return float4(color, 1.0 - transmittance);
 }
 
 public void makeDict(

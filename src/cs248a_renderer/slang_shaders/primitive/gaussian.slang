@@ -131,9 +131,7 @@ public void unpackGaussianSplat(
     gaussian.scale = soa.scales[tid];
     gaussian.color = soa.colors[tid];
     gaussian.opacity = soa.opacities[tid];
-
-    // compute cov3d here and store
-
+    
     gaussians[tid] = gaussian;
 }
 

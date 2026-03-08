@@ -66,7 +66,7 @@ class RendererModules:
             path="model.slang",
             link=[self.math_module],
         )
-        self.renderer_module = slangtorch.loadModule(
+        self.renderer_module = spy.Module.load_from_file(
             device=device,
             path="renderer.slang",
             link=[

@@ -444,10 +444,10 @@ class Renderer:
         print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
 
         print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
-        tile_height = self._render_target.height / num_tiles.y
-        tile_width = self._render_target.width / num_tiles.x
+        tile_size = glm.ivec2(self._render_target.width // num_tiles.x, self._render_target.height // num_tiles.y)
         self.renderer_cuda_module.renderGaussians(
-            uniforms=uniforms,
+            num_tiles=num_tiles,
+            tile_size=tile_size,
             gaussian_idxs=sorted_gauss_idx_vals_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,
@@ -458,7 +458,7 @@ class Renderer:
             result=self._render_target
         ).launchRaw(
             gridSize=(num_tiles.y, num_tiles.x, 1),
-            blockSize=(tile_width, tile_height, 1)
+            blockSize=(tile_size.x, tile_size.y, 1)
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
         

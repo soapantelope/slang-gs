@@ -133,7 +133,8 @@ public void preprocessGaussians(
 [AutoPyBindCUDA]
 [CUDAKernel]
 public void renderGaussians(
-    RendererUniform uniforms, 
+    int2 num_tiles,
+    int2 tile_size,
     StructuredBuffer<int> gaussian_idxs, 
     StructuredBuffer<int> tile_range_starts,
     StructuredBuffer<int> tile_range_ends,
@@ -145,10 +146,10 @@ public void renderGaussians(
 )
 {
     int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
-    int tile_idx = cudaBlockIdx().y * uniforms.camera.num_tiles.x + cudaBlockIdx().x;
+    int tile_idx = cudaBlockIdx().y * num_tiles.x + cudaBlockIdx().x;
     int tile_start_idx = tile_range_starts[tile_idx];
     int tile_end_idx = tile_range_ends[tile_idx];
-    int num_threads_in_block = uniforms.camera.getTileDims().x * uniforms.camera.getTileDims().y;
+    int num_threads_in_block = tile_size.x * tile_size.y;
 
     int num_gaussians_left = tile_end_idx - tile_start_idx;
     int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;

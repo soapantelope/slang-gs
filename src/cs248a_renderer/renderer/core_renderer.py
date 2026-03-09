@@ -93,7 +93,8 @@ class Renderer:
         self.model_module = render_modules.model_module
         self.renderer_module = render_modules.renderer_module
         self.material_module = render_modules.material_module
-
+        self.renderer_cuda_module = render_modules.renderer_cuda_module
+         
         # Initialize primitive buffers.
         self._physics_based_material_texture_buf = PhysicsBasedMaterialTextureBuf(
             albedo=spy.NDBuffer(
@@ -445,16 +446,19 @@ class Renderer:
         print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
         tile_height = self._render_target.height / num_tiles.y
         tile_width = self._render_target.width / num_tiles.x
-        self.renderer_module.renderGaussians(
+        self.renderer_cuda_module.renderGaussians(
             uniforms=uniforms,
-            _result=self._render_target,
             gaussian_idxs=sorted_gauss_idx_vals_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,
             inv_cov2Ds=inv_cov2Ds,
             centers=centers,
             rgbs=rgbs,
-            opacities=opacities
+            opacities=opacities,
+            result=self._render_target
+        ).launchRaw(
+            gridSize=(num_tiles.y, num_tiles.x, 1),
+            blockSize=(tile_width, tile_height, 1)
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
         

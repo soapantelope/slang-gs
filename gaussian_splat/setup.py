@@ -9,10 +9,14 @@ from cs248a_renderer.model.gaussian_splat import GaussianSplat
 from cs248a_renderer.renderer.core_renderer import Renderer
 from pathlib import Path
 
-device = setup_device([])
-renderer_modules = RendererModules(device)
-
 OUTPUT_IMG_SIZE = (512, 512)
+num_tiles = (32, 32)
+tile_width = OUTPUT_IMG_SIZE[0] // num_tiles[0]
+tile_height = OUTPUT_IMG_SIZE[1] // num_tiles[1]
+
+device = setup_device([])
+renderer_modules = RendererModules(device, tile_width=tile_width, tile_height=tile_height)
+
 output_image = device.create_texture(
     type=spy.TextureType.texture_2d,
     format=spy.Format.rgba32_float,

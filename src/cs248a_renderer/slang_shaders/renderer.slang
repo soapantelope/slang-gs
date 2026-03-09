@@ -46,6 +46,8 @@ public struct RendererUniform
     public bool visualizeAlbedo;
 }
 
+groupshared ProjectedGaussian gaussians_in_threadgroup[32 * 32];
+
 /**
  * Sample the scene at the given uv coordinate.
  * @param uv The normalized uv coordinate from (0, 0) in the bottom-left to (1, 1) in the top-right.
@@ -128,9 +130,9 @@ public void preprocessGaussians(
     rgbs[tid] = rgb;
 }
 
-[numthreads(TILE_WIDTH, TILE_HEIGHT, 1)]
-public float4 renderGaussians(
-    uint2 tid, 
+[AutoPyBindCUDA]
+[CUDAKernel]
+public void renderGaussians(
     RendererUniform uniforms, 
     StructuredBuffer<int> gaussian_idxs, 
     StructuredBuffer<int> tile_range_starts,
@@ -138,29 +140,46 @@ public float4 renderGaussians(
     StructuredBuffer<float2x2> inv_cov2Ds,
     StructuredBuffer<float3> centers,
     StructuredBuffer<float3> rgbs,
-    StructuredBuffer<float> opacities
+    StructuredBuffer<float> opacities,
+    RWTexture2D<float4> result
 )
 {
+    int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
+    int tile_idx = cudaBlockIdx().y * uniforms.camera.num_tiles.x + cudaBlockIdx().x;
+    int tile_start_idx = tile_range_starts[tile_idx];
+    int tile_end_idx = tile_range_ends[tile_idx];
+    int num_threads_in_block = uniforms.camera.getTileDims().x * uniforms.camera.getTileDims().y;
+
+    int num_gaussians_left = tile_end_idx - tile_start_idx;
+    int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;
+    int thread_idx = cudaThreadIdx().y + cudaBlockDim().x + cudaThreadIdx().x;
+
     float transmittance = 1.0;
     float3 color = float3(0.0, 0.0, 0.0);
-    uint2 tile = tid / (uint2) uniforms.camera.getTileDims(); 
-    uint tile_idx = tile.y * uniforms.camera.num_tiles.x + tile.x;
 
-    for (int i = tile_range_ends[tile_idx] -  1; i >= tile_range_starts[tile_idx]; i--) {
-        if (transmittance < 0.001) break;
+    for (int i = 0; i < num_memory_loops; i++) {
+        AllMemoryBarrierWithGroupSync();
+        int offset = num_threads_in_block * i + thread_idx;
+        if (tile_start_idx + offset < tile_end_idx) {
+            int gaussian_idx = gaussian_idxs[tile_start_idx + offset];
+            ProjectedGaussian projected_gaussian = initProjectedGaussian(rgbs[gaussian_idx], centers[gaussian_idx].xy, opacities[gaussian_idx], inv_cov2Ds[gaussian_idx]);
+            gaussians_in_threadgroup[thread_idx] = projected_gaussian;
+        }
+        AllMemoryBarrierWithGroupSync();
 
-        int gaussian_idx = gaussian_idxs[i];
-        float3 gaussian_color = rgbs[gaussian_idx];
-        float gaussian_opacity = opacities[gaussian_idx];
+        int num_gaussians_left_in_threadgroup = min(num_threads_in_block, num_gaussians_left);
+        for (int i = 0; i < num_gaussians_left_in_threadgroup; i++) {
+            if (transmittance < 0.001) break;
 
-        float2 gaussian_screen_center = centers[gaussian_idx].xy;
-        float2 x = float2(tid.x - gaussian_screen_center.x, tid.y - gaussian_screen_center.y);
-
-        float alpha = exp(-0.5 * dot(x, mul(inv_cov2Ds[gaussian_idx], x))) * gaussian_opacity;
-        color += transmittance * alpha * gaussian_color;
-        transmittance *= (1.0 - alpha);
+            ProjectedGaussian gaussian = gaussians_in_threadgroup[i];
+            float2 x = float2(pixel_idx.x - gaussian.screen_center.x, pixel_idx.y - gaussian.screen_center.y);
+            float alpha = exp(-0.5 * dot(x, mul(gaussian.inv_cov2D, x))) * gaussian.opacity;
+            color += transmittance * alpha * gaussian.rgb;
+            transmittance *= (1.0 - alpha);
+        }
+        num_gaussians_left -= num_gaussians_left_in_threadgroup;
     }
-    return float4(color, 1.0 - transmittance);
+    result[pixel_idx] = float4(color, 1.0 - transmittance);
 }
 
 public void makeDict(

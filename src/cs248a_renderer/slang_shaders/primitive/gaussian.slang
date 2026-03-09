@@ -1,6 +1,23 @@
 implementing "../model.slang";
 import math;
 
+public struct ProjectedGaussian 
+{
+    public float3 rgb;
+    public float2 screen_center;
+    public float opacity;
+    public float2x2 inv_cov2D;
+}
+
+public ProjectedGaussian initProjectedGaussian(float3 rgb, float2 screen_center, float opacity, float2x2 inv_cov2D) {
+    ProjectedGaussian projected_gaussian;
+    projected_gaussian.rgb = rgb;
+    projected_gaussian.screen_center = screen_center;
+    projected_gaussian.opacity = opacity;
+    projected_gaussian.inv_cov2D = inv_cov2D;
+    return projected_gaussian;
+}
+
 public struct Gaussian 
 {
     public float3 position;

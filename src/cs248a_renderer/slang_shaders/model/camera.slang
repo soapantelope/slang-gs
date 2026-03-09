@@ -43,7 +43,7 @@ public struct Camera
         return ((ndc.xy + 1.0) * canvasSize) * 0.5;
     }
 
-    public float2 getTileDims() {
-        return canvasSize / num_tiles;
+    public int2 getTileDims() {
+        return (int2) (canvasSize / num_tiles);
     }
 }

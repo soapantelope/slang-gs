@@ -467,7 +467,7 @@ class Renderer:
             opacities=opacities,
             result=result,
         ).launchRaw(
-            gridSize=(num_tiles.y, num_tiles.x, 1),
+            gridSize=(num_tiles.x, num_tiles.y, 1),
             blockSize=(tile_size.x, tile_size.y, 1),
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))

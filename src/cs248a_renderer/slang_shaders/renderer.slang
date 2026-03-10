@@ -231,10 +231,10 @@ public void renderGaussians(
         }
         num_gaussians_left -= num_gaussians_left_in_threadgroup;
     }
-    result[uint3(pixel_idx.x, pixel_idx.y, 0)] = color.r;
-    result[uint3(pixel_idx.x, pixel_idx.y, 1)] = color.g;
-    result[uint3(pixel_idx.x, pixel_idx.y, 2)] = color.b;
-    result[uint3(pixel_idx.x, pixel_idx.y, 3)] = 1.0 - transmittance;
+    result[uint3(pixel_idx.y, pixel_idx.x, 0)] = color.r;
+    result[uint3(pixel_idx.y, pixel_idx.x, 1)] = color.g;
+    result[uint3(pixel_idx.y, pixel_idx.x, 2)] = color.b;
+    result[uint3(pixel_idx.y, pixel_idx.x, 3)] = 1.0 - transmittance;
 }
 
 [AutoPyBindCUDA]

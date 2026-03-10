@@ -380,7 +380,6 @@ class Renderer:
         inv_cov2Ds = torch.zeros((self._gaussian_count, 2, 2), dtype=torch.float32, device="cuda")
         rgbs = torch.zeros((self._gaussian_count, 3), dtype=torch.float32, device="cuda")
 
-        torch.cuda.synchronize()
         print("about to preprocess gaussians, timestamp: " + str(time.perf_counter() - start_time))
         self.renderer_cuda_module.preprocessGaussians(
             positions=self._gaussian_positions,
@@ -404,14 +403,12 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
-        torch.cuda.synchronize()
         print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
 
         total_num_tiles = int(num_tiles.x) * int(num_tiles.y)
 
         tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0, dtype=torch.int32)
         total_tiles_touched = tiles_touched_cumsum[-1].item()
-        torch.cuda.synchronize()
         print("total tile-gaussian intersections: " + str(total_tiles_touched))
 
         tiles_touched_prefix_sum = torch.cat([torch.zeros(1, dtype=torch.int32, device="cuda"), tiles_touched_cumsum])
@@ -419,7 +416,6 @@ class Renderer:
         tile_and_depth_keys_buf = torch.zeros(total_tiles_touched, dtype=torch.int64, device="cuda")
         gauss_idx_vals_buf = torch.zeros(total_tiles_touched, dtype=torch.int32, device="cuda")
 
-        torch.cuda.synchronize()
         print("about to make keys, timestamp: " + str(time.perf_counter() - start_time))
         self.renderer_cuda_module.makeDict(
             tiles_touched_prefix_sum=tiles_touched_prefix_sum,
@@ -431,10 +427,8 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
-        torch.cuda.synchronize()
         print("finished making keys, timestamp: " + str(time.perf_counter() - start_time))
 
-        torch.cuda.synchronize()
         print("starting sort, timestamp: " + str(time.perf_counter() - start_time))
         sorted_tile_and_depth_keys_buf, sort_indices = torch.sort(tile_and_depth_keys_buf)
         sorted_gauss_idx_vals_buf = gauss_idx_vals_buf[sort_indices]
@@ -442,7 +436,6 @@ class Renderer:
         tile_range_starts = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
         tile_range_ends = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
 
-        torch.cuda.synchronize()
         print("sorted, timestamp: " + str(time.perf_counter() - start_time))
 
         self.renderer_cuda_module.prefixSumTiles(
@@ -454,10 +447,8 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(total_tiles_touched, block_size), 1, 1),
         )
-        torch.cuda.synchronize()
         print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
 
-        torch.cuda.synchronize()
         print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
         tile_size = glm.ivec2(self._render_target.width // num_tiles.x, self._render_target.height // num_tiles.y)
 
@@ -479,7 +470,6 @@ class Renderer:
             gridSize=(num_tiles.x, num_tiles.y, 1),
             blockSize=(tile_size.x, tile_size.y, 1),
         )
-        torch.cuda.synchronize()
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
         self._render_target.copy_from_numpy(result.cpu().numpy())
         

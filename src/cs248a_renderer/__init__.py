@@ -41,7 +41,7 @@ class RendererModules:
     model_module: spy.Module
     renderer_module: spy.Module
 
-    def __init__(self, device: spy.Device, tile_width: int = 16, tile_height: int = 16):
+    def __init__(self, device: spy.Device):
         self.math_module = spy.Module.load_from_file(
             device=device,
             path="math.slang",
@@ -78,6 +78,5 @@ class RendererModules:
             ],
         )
         self.renderer_cuda_module = slangtorch.loadModule(
-            str(SHADER_PATH / "renderer.slang"),
-            defines={"PYTHON_TILE_WIDTH": tile_width, "PYTHON_TILE_HEIGHT": tile_height},
+            str(SHADER_PATH / "renderer.slang")
         )

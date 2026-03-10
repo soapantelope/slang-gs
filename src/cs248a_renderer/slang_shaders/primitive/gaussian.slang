@@ -128,27 +128,20 @@ public struct RectBounds {
     public int maxY;
 }
     
-public struct StructOfGaussianArrays
-{
-    public StructuredBuffer<float3> positions;
-    public StructuredBuffer<float4> rotations;
-    public StructuredBuffer<float3> scales;
-    public StructuredBuffer<float3> colors;
-    public StructuredBuffer<float> opacities;
-}
-
-public void unpackGaussianSplat(
-    int tid, 
-    StructOfGaussianArrays soa, 
-    RWStructuredBuffer<Gaussian> gaussians) 
-{
-    Gaussian gaussian;
-    gaussian.position = soa.positions[tid];
-    gaussian.rotation = soa.rotations[tid];
-    gaussian.scale = soa.scales[tid];
-    gaussian.color = soa.colors[tid];
-    gaussian.opacity = soa.opacities[tid];
-    
-    gaussians[tid] = gaussian;
+public Gaussian loadGaussianFromTensors(
+    uint idx,
+    TensorView<float3> positions,
+    TensorView<float4> rotations,
+    TensorView<float3> scales,
+    TensorView<float3> colors,
+    TensorView<float> gaussian_opacities
+) {
+    Gaussian g;
+    g.position = positions[idx];
+    g.rotation = rotations[idx];
+    g.scale = scales[idx];
+    g.color = colors[idx];
+    g.opacity = gaussian_opacities[idx];
+    return g;
 }
 

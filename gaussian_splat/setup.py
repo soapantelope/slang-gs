@@ -10,12 +10,9 @@ from cs248a_renderer.renderer.core_renderer import Renderer
 from pathlib import Path
 
 OUTPUT_IMG_SIZE = (512, 512)
-num_tiles = (32, 32)
-tile_width = OUTPUT_IMG_SIZE[0] // num_tiles[0]
-tile_height = OUTPUT_IMG_SIZE[1] // num_tiles[1]
 
 device = setup_device([])
-renderer_modules = RendererModules(device, tile_width=tile_width, tile_height=tile_height)
+renderer_modules = RendererModules(device)
 
 output_image = device.create_texture(
     type=spy.TextureType.texture_2d,
@@ -42,12 +39,7 @@ gaussian = GaussianSplat(device=device, path=Path("../resources/bonsai.ply"))
 renderer.load_gaussian(gaussian=gaussian)
 
 renderer.sqrt_spp = 1
-renderer.render_gaussians(
-    cam.view_matrix(),
-    cam.projection_matrix(OUTPUT_IMG_SIZE[0], OUTPUT_IMG_SIZE[1]),
-    glm.ivec2(32, 32),
-    cam.fov
-)
+renderer.render_gaussians(cam, glm.ivec2(32, 32))
 img_data = np.flipud(output_image.to_numpy())
 plt.imshow(img_data)
 plt.imsave('output.png', img_data)

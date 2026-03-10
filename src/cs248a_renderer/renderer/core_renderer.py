@@ -21,6 +21,7 @@ from cs248a_renderer.model.volumes import DenseVolume
 from cs248a_renderer.model.bounding_box import BoundingBox3D
 from cs248a_renderer.model.material import PhysicsBasedMaterialTextureBuf
 from cs248a_renderer.model.gaussian_splat import GaussianSplat
+from cs248a_renderer.model.cameras import PerspectiveCamera
 
 class FilteringMethod(Enum):
     NEAREST = 0
@@ -49,7 +50,11 @@ class Renderer:
     _volume_tex_buf: spy.NDBuffer | None
     _volume_d_tex_buf: spy.NDBuffer | None
 
-    _gaussian_buf: spy.InstanceBuffer | None
+    _gaussian_positions: torch.Tensor | None
+    _gaussian_rotations: torch.Tensor | None
+    _gaussian_scales: torch.Tensor | None
+    _gaussian_colors: torch.Tensor | None
+    _gaussian_opacities: torch.Tensor | None
     _gaussian_count: int | None
 
     _bvh_node_buf: spy.NDBuffer | None
@@ -163,8 +168,11 @@ class Renderer:
         }
 
     def load_gaussian(self, gaussian: GaussianSplat) -> None:
-        # load a single gaussian splat into renderer
-        self._gaussian_buf = gaussian.gaussians
+        self._gaussian_positions = gaussian.positions
+        self._gaussian_rotations = gaussian.rotations
+        self._gaussian_scales = gaussian.scales
+        self._gaussian_colors = gaussian.colors
+        self._gaussian_opacities = gaussian.opacities
         self._gaussian_count = gaussian.num_gaussians
 
     def load_triangles(self, scene: Scene) -> None:
@@ -320,8 +328,7 @@ class Renderer:
             }
         if self._surface_volume_buf is not None:
             uniforms["surfaceVolumeBuf"] = self._surface_volume_buf
-        if self._gaussian_buf is not None:
-            uniforms["gaussianBuf"] = self._gaussian_buf
+        if self._gaussian_positions is not None:
             uniforms["gaussianCount"] = self._gaussian_count
         if self._bvh_node_buf is not None:
             uniforms["bvh"] = {
@@ -343,108 +350,114 @@ class Renderer:
         uniforms["sdfBuf"] = sdf_uniforms
         return uniforms
 
+    def divide_ceil(self, a: int, b: int) -> int:
+        return (a + b - 1) // b
+
     def render_gaussians(
         self,
-        view_mat: glm.mat4,
-        proj_mat: glm.mat4,
+        cam: PerspectiveCamera,
         num_tiles: glm.ivec2,
-        fov: float
     ) -> None:
-        
-        # TODO: use tiles instead of tiles, figure out thread groups(?)
-
-        print("building uniforms")
-        uniforms = self._build_render_uniforms(
-            view_mat=view_mat,
-            proj_mat=proj_mat,
-            num_tiles=num_tiles,
-            fov=fov
-        )
 
         start_time = time.perf_counter()
         print("time started")
 
-        tiles_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
-        tile_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
-        radii = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
-        opacities = spy.NDBuffer(device=self._device, dtype=self.model_module.float, shape=(self._gaussian_count,))
-        centers = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
-        inv_cov2Ds = spy.NDBuffer(device=self._device, dtype=self.model_module.float2x2, shape=(self._gaussian_count,))
-        rgbs = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
+        block_size = 256
+
+        view_mat_tensor = torch.as_tensor(
+            np.ascontiguousarray(cam.view_matrix()), dtype=torch.float32, device="cuda",
+        )
+        proj_mat_tensor = torch.as_tensor(
+            np.ascontiguousarray(cam.projection_matrix(self._render_target.width, self._render_target.height)),
+            dtype=torch.float32, device="cuda",
+        )
+
+        tiles_touched = torch.zeros(self._gaussian_count, dtype=torch.int32, device="cuda")
+        tile_ranges_touched = torch.zeros((self._gaussian_count, 4), dtype=torch.int32, device="cuda")
+        radii = torch.zeros(self._gaussian_count, dtype=torch.int32, device="cuda")
+        opacities = torch.zeros(self._gaussian_count, dtype=torch.float32, device="cuda")
+        centers = torch.zeros((self._gaussian_count, 3), dtype=torch.float32, device="cuda")
+        inv_cov2Ds = torch.zeros((self._gaussian_count, 2, 2), dtype=torch.float32, device="cuda")
+        rgbs = torch.zeros((self._gaussian_count, 3), dtype=torch.float32, device="cuda")
 
         print("about to preprocess gaussians, timestamp: " + str(time.perf_counter() - start_time))
-        self.renderer_module.preprocessGaussians(
-            tid=spy.grid(shape=(self._gaussian_count,)),
-            uniforms=uniforms,
+        self.renderer_cuda_module.preprocessGaussians(
+            positions=self._gaussian_positions,
+            rotations=self._gaussian_rotations,
+            scales=self._gaussian_scales,
+            colors=self._gaussian_colors,
+            gaussian_opacities=self._gaussian_opacities,
+            viewMatrix_t=view_mat_tensor,
+            projMatrix_t=proj_mat_tensor,
+            canvas_width=self._render_target.width,
+            canvas_height=self._render_target.height,
+            focalLength=cam.focal_length(self._render_target.height),
             tiles_touched=tiles_touched,
             tile_ranges_touched=tile_ranges_touched,
             radii=radii,
             opacities=opacities,
             centers=centers,
             inv_cov2Ds=inv_cov2Ds,
-            rgbs=rgbs
+            rgbs=rgbs,
+        ).launchRaw(
+            blockSize=(block_size, 1, 1),
+            gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
         print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
 
-        total_num_tiles = num_tiles.x * num_tiles.y
+        total_num_tiles = int(num_tiles.x) * int(num_tiles.y)
 
-        tiles_touched_np = tiles_touched.to_numpy()
-        total_tiles_touched = int(np.sum(tiles_touched_np))
+        tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0)
+        total_tiles_touched = tiles_touched_cumsum[-1].item()
         print("total tile-gaussian intersections: " + str(total_tiles_touched))
 
-        tiles_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
-        tiles_touched_prefix_sum_np[1:] = np.cumsum(tiles_touched_np)
-        tiles_touched_prefix_sum = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count + 1,))
-        tiles_touched_prefix_sum.copy_from_numpy(tiles_touched_prefix_sum_np)
+        tiles_touched_prefix_sum = torch.cat([torch.zeros(1, dtype=torch.int32, device="cuda"), tiles_touched_cumsum])
 
-        tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
-        gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
+        tile_and_depth_keys_buf = torch.zeros(total_tiles_touched, dtype=torch.int64, device="cuda")
+        gauss_idx_vals_buf = torch.zeros(total_tiles_touched, dtype=torch.int32, device="cuda")
 
         print("about to make keys, timestamp: " + str(time.perf_counter() - start_time))
-        self.renderer_module.makeDict(
-            tid=spy.grid(shape=(self._gaussian_count,)),
-            uniforms=uniforms,
+        self.renderer_cuda_module.makeDict(
             tiles_touched_prefix_sum=tiles_touched_prefix_sum,
             tile_ranges_touched=tile_ranges_touched,
             centers=centers,
             tile_and_depth_keys_buf=tile_and_depth_keys_buf,
-            gauss_idx_vals_buf=gauss_idx_vals_buf
+            gauss_idx_vals_buf=gauss_idx_vals_buf,
+            num_tiles_x=int(num_tiles.x),
+        ).launchRaw(
+            blockSize=(block_size, 1, 1),
+            gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
         print("finished making keys, timestamp: " + str(time.perf_counter() - start_time))
 
-        # start part to parallelize TODO: radix sort them instead?
+        print("starting sort, timestamp: " + str(time.perf_counter() - start_time))
+        sorted_tile_and_depth_keys_buf, sort_indices = torch.sort(tile_and_depth_keys_buf)
+        sorted_gauss_idx_vals_buf = gauss_idx_vals_buf[sort_indices]
 
-        print("starting to transfer and sort, timestamp: " + str(time.perf_counter() - start_time))
-        tile_and_depth_keys_buf_np = tile_and_depth_keys_buf.to_numpy()
-        gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
+        tile_range_starts = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
+        tile_range_ends = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
 
-        idxs = np.argsort(tile_and_depth_keys_buf_np)
-        sorted_tile_and_depth_keys_buf_np = tile_and_depth_keys_buf_np[idxs]
-        sorted_gauss_idx_vals_buf_np = gauss_idx_vals_buf[idxs]
+        print("sorted, timestamp: " + str(time.perf_counter() - start_time))
 
-        sorted_tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
-        sorted_tile_and_depth_keys_buf.copy_from_numpy(sorted_tile_and_depth_keys_buf_np)
-        sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
-        sorted_gauss_idx_vals_buf.copy_from_numpy(sorted_gauss_idx_vals_buf_np)
-
-        tile_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
-        tile_range_starts.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
-        tile_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
-        tile_range_ends.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
-
-        print("sorted and transfered back, timestamp: " + str(time.perf_counter() - start_time))
-
-        self.renderer_module.prefixSumTiles(
-            tid=spy.grid(shape=(total_tiles_touched,)),
+        self.renderer_cuda_module.prefixSumTiles(
             total_tiles_touched=total_tiles_touched,
             sorted_tile_and_depth_keys_buf=sorted_tile_and_depth_keys_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,
+        ).launchRaw(
+            blockSize=(block_size, 1, 1),
+            gridSize=(self.divide_ceil(total_tiles_touched, block_size), 1, 1),
         )
         print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
 
         print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
         tile_size = glm.ivec2(self._render_target.width // num_tiles.x, self._render_target.height // num_tiles.y)
+
+        result = torch.zeros(
+            (self._render_target.height, self._render_target.width, 4),
+            dtype=torch.float32,
+            device="cuda",
+        )
         self.renderer_cuda_module.renderGaussians(
             num_tiles=num_tiles,
             tile_size=tile_size,
@@ -455,12 +468,14 @@ class Renderer:
             centers=centers,
             rgbs=rgbs,
             opacities=opacities,
-            result=self._render_target
+            result=result,
         ).launchRaw(
             gridSize=(num_tiles.y, num_tiles.x, 1),
-            blockSize=(tile_size.x, tile_size.y, 1)
+            blockSize=(tile_size.x, tile_size.y, 1),
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
+
+        self._render_target.copy_from_numpy(result.cpu().numpy())
         
     def render(
         self,

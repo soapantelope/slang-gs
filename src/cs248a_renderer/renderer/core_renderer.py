@@ -405,6 +405,13 @@ class Renderer:
         )
         print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
 
+        torch.cuda.synchronize()
+        print("inv_cov2Ds NaN:", torch.isnan(inv_cov2Ds).sum().item(), "min:", inv_cov2Ds.min().item(), "max:", inv_cov2Ds.max().item())
+        print("centers NaN:", torch.isnan(centers).sum().item(), "min:", centers.min().item(), "max:", centers.max().item())
+        print("rgbs NaN:", torch.isnan(rgbs).sum().item(), "min:", rgbs.min().item(), "max:", rgbs.max().item())
+        print("opacities NaN:", torch.isnan(opacities).sum().item(), "min:", opacities.min().item(), "max:", opacities.max().item())
+        print("tiles_touched NaN:", torch.isnan(tiles_touched.float()).sum().item(), "min:", tiles_touched.min().item(), "max:", tiles_touched.max().item())
+
         total_num_tiles = int(num_tiles.x) * int(num_tiles.y)
 
         tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0, dtype=torch.int32)

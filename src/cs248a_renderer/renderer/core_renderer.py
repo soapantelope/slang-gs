@@ -472,6 +472,8 @@ class Renderer:
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
 
+        torch.cuda.synchronize()
+        print("result min:", result.min().item(), "max:", result.max().item())
         self._render_target.copy_from_numpy(result.cpu().numpy())
         
     def render(

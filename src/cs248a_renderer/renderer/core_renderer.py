@@ -352,17 +352,18 @@ class Renderer:
         
         # TODO: use tiles instead of tiles, figure out thread groups(?)
 
-        print("building uniforms")
+        t = time.perf_counter()
         uniforms = self._build_render_uniforms(
             view_mat=view_mat,
             proj_mat=proj_mat,
             num_tiles=num_tiles,
             fov=fov
         )
+        print(f"build uniforms: {time.perf_counter() - t:.4f}s")
 
         start_time = time.perf_counter()
-        print("time started")
 
+        t = time.perf_counter()
         tiles_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
         tile_ranges_touched = spy.NDBuffer(device=self._device, dtype=self.model_module.int4, shape=(self._gaussian_count,))
         radii = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count,))
@@ -370,8 +371,9 @@ class Renderer:
         centers = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
         inv_cov2Ds = spy.NDBuffer(device=self._device, dtype=self.model_module.float2x2, shape=(self._gaussian_count,))
         rgbs = spy.NDBuffer(device=self._device, dtype=self.model_module.float3, shape=(self._gaussian_count,))
+        print(f"allocate NDBuffers: {time.perf_counter() - t:.4f}s")
 
-        print("about to preprocess gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        t = time.perf_counter()
         self.renderer_module.preprocessGaussians(
             tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
@@ -383,23 +385,29 @@ class Renderer:
             inv_cov2Ds=inv_cov2Ds,
             rgbs=rgbs
         )
-        print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        print(f"preprocessGaussians dispatch: {time.perf_counter() - t:.4f}s")
 
         total_num_tiles = num_tiles.x * num_tiles.y
 
+        t = time.perf_counter()
         tiles_touched_np = tiles_touched.to_numpy()
-        total_tiles_touched = int(np.sum(tiles_touched_np))
-        print("total tile-gaussian intersections: " + str(total_tiles_touched))
+        print(f"tiles_touched.to_numpy(): {time.perf_counter() - t:.4f}s")
 
+        t = time.perf_counter()
+        total_tiles_touched = int(np.sum(tiles_touched_np))
         tiles_touched_prefix_sum_np = np.zeros(self._gaussian_count + 1, dtype=np.int32)
         tiles_touched_prefix_sum_np[1:] = np.cumsum(tiles_touched_np)
+        print(f"numpy cumsum: {time.perf_counter() - t:.4f}s")
+        print("total tile-gaussian intersections: " + str(total_tiles_touched))
+
+        t = time.perf_counter()
         tiles_touched_prefix_sum = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(self._gaussian_count + 1,))
         tiles_touched_prefix_sum.copy_from_numpy(tiles_touched_prefix_sum_np)
-
         tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
         gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
+        print(f"alloc + copy_from_numpy for prefix sum + keys: {time.perf_counter() - t:.4f}s")
 
-        print("about to make keys, timestamp: " + str(time.perf_counter() - start_time))
+        t = time.perf_counter()
         self.renderer_module.makeDict(
             tid=spy.grid(shape=(self._gaussian_count,)),
             uniforms=uniforms,
@@ -409,30 +417,34 @@ class Renderer:
             tile_and_depth_keys_buf=tile_and_depth_keys_buf,
             gauss_idx_vals_buf=gauss_idx_vals_buf
         )
-        print("finished making keys, timestamp: " + str(time.perf_counter() - start_time))
+        print(f"makeDict dispatch: {time.perf_counter() - t:.4f}s")
 
-        # start part to parallelize TODO: radix sort them instead?
-
-        print("starting to transfer and sort, timestamp: " + str(time.perf_counter() - start_time))
+        t = time.perf_counter()
         tile_and_depth_keys_buf_np = tile_and_depth_keys_buf.to_numpy()
-        gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
+        print(f"keys to_numpy ({total_tiles_touched} elems): {time.perf_counter() - t:.4f}s")
 
+        t = time.perf_counter()
+        gauss_idx_vals_buf = gauss_idx_vals_buf.to_numpy()
+        print(f"vals to_numpy ({total_tiles_touched} elems): {time.perf_counter() - t:.4f}s")
+
+        t = time.perf_counter()
         idxs = np.argsort(tile_and_depth_keys_buf_np)
         sorted_tile_and_depth_keys_buf_np = tile_and_depth_keys_buf_np[idxs]
         sorted_gauss_idx_vals_buf_np = gauss_idx_vals_buf[idxs]
+        print(f"np.argsort + reindex: {time.perf_counter() - t:.4f}s")
 
+        t = time.perf_counter()
         sorted_tile_and_depth_keys_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.uint64_t, shape=(total_tiles_touched,))
         sorted_tile_and_depth_keys_buf.copy_from_numpy(sorted_tile_and_depth_keys_buf_np)
         sorted_gauss_idx_vals_buf = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_tiles_touched,))
         sorted_gauss_idx_vals_buf.copy_from_numpy(sorted_gauss_idx_vals_buf_np)
-
         tile_range_starts = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
         tile_range_starts.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
         tile_range_ends = spy.NDBuffer(device=self._device, dtype=self.model_module.int, shape=(total_num_tiles,))
         tile_range_ends.copy_from_numpy(np.zeros(total_num_tiles, dtype=np.int32))
+        print(f"alloc + copy_from_numpy for sorted bufs + ranges: {time.perf_counter() - t:.4f}s")
 
-        print("sorted and transfered back, timestamp: " + str(time.perf_counter() - start_time))
-
+        t = time.perf_counter()
         self.renderer_module.prefixSumTiles(
             tid=spy.grid(shape=(total_tiles_touched,)),
             total_tiles_touched=total_tiles_touched,
@@ -440,9 +452,9 @@ class Renderer:
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,
         )
-        print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
+        print(f"prefixSumTiles dispatch: {time.perf_counter() - t:.4f}s")
 
-        print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        t = time.perf_counter()
         tile_height = self._render_target.height / num_tiles.y
         tile_width = self._render_target.width / num_tiles.x
         self.renderer_module.renderGaussians(
@@ -456,7 +468,8 @@ class Renderer:
             rgbs=rgbs,
             opacities=opacities
         )
-        print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        print(f"renderGaussians dispatch: {time.perf_counter() - t:.4f}s")
+        print(f"TOTAL: {time.perf_counter() - start_time:.4f}s")
         
     def render(
         self,

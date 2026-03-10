@@ -1,0 +1,15 @@
+# requirements.txt
+ipywidgets>=8.1.7
+jax>=0.8.0
+jupyterlab>=4.4.9
+matplotlib>=3.10.6
+pyntcloud>=0.3.1
+pytest>=9.0.1
+pytest-benchmark>=5.2.3
+slangpy>=0.36.0
+tensorboard>=2.20.0
+torch>=2.9.1
+torchvision>=0.24.1
+tqdm>=4.67.1
+-e external/slangpy-imgui-bundle
+-e external/slangpy-nn

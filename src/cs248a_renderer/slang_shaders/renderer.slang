@@ -262,7 +262,7 @@ public void makeDict(
         for (int j = tile_range_touched.z; j < tile_range_touched.w; j++) {
             uint64_t tile_idx = j * NUM_TILES_PER_DIM + i;
             tile_idx <<= 32;
-            uint32_t depth = ~reinterpret<uint32_t>(-centers[uint2(tid, 2)]);
+            uint32_t depth = reinterpret<uint32_t>(-centers[uint2(tid, 2)]);
             uint64_t key = tile_idx | depth;
             tile_and_depth_keys_buf[start_idx] = reinterpret<int64_t>(key);
             gauss_idx_vals_buf[start_idx] = tid;

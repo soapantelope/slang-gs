@@ -407,7 +407,7 @@ class Renderer:
 
         total_num_tiles = int(num_tiles.x) * int(num_tiles.y)
 
-        tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0)
+        tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0, dtype=torch.int32)
         total_tiles_touched = tiles_touched_cumsum[-1].item()
         print("total tile-gaussian intersections: " + str(total_tiles_touched))
 

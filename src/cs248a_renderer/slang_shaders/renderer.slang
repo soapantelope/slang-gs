@@ -81,7 +81,6 @@ public float4 sample(float2 uv, RendererUniform uniforms)
 }
 
 /**
-/**
  * The entry point of the renderer.
  * @param tid The 2D coordinate of the current thread. Ranges from (0, 0) to (canvasSize.x - 1, canvasSize.y - 1).
  * @param uniforms The renderer uniform containing camera, sampling, and scene information.

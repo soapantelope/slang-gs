@@ -5,9 +5,6 @@ import platform
 import slangpy as spy
 import slangpy_nn as nn
 
-import torch
-import slangtorch
-
 SHADER_PATH = Path(__file__).parent / "slang_shaders"
 
 _system = platform.system()

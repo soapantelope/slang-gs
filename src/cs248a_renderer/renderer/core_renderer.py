@@ -458,6 +458,7 @@ class Renderer:
         tile_height = self._render_target.height / num_tiles.y
         tile_width = self._render_target.width / num_tiles.x
         self.renderer_module.renderGaussians(
+            tid=spy.grid(shape=(self._render_target.height, self._render_target.width)),
             uniforms=uniforms,
             _result=self._render_target,
             gaussian_idxs=sorted_gauss_idx_vals_buf,

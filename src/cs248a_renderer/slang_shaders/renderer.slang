@@ -128,7 +128,6 @@ public void preprocessGaussians(
     rgbs[tid] = rgb;
 }
 
-[numthreads(TILE_WIDTH, TILE_HEIGHT, 1)]
 public float4 renderGaussians(
     uint2 tid, 
     RendererUniform uniforms, 

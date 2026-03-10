@@ -423,7 +423,6 @@ class Renderer:
             centers=centers,
             tile_and_depth_keys_buf=tile_and_depth_keys_buf,
             gauss_idx_vals_buf=gauss_idx_vals_buf,
-            num_tiles_x=int(num_tiles.x),
         ).launchRaw(
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
@@ -459,8 +458,6 @@ class Renderer:
             device="cuda",
         )
         self.renderer_cuda_module.renderGaussians(
-            num_tiles=num_tiles,
-            tile_size=tile_size,
             gaussian_idxs=sorted_gauss_idx_vals_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,

@@ -130,17 +130,17 @@ public struct RectBounds {
     
 public Gaussian loadGaussianFromTensors(
     uint idx,
-    TensorView<float3> positions,
-    TensorView<float4> rotations,
-    TensorView<float3> scales,
-    TensorView<float3> colors,
+    TensorView<float> positions,
+    TensorView<float> rotations,
+    TensorView<float> scales,
+    TensorView<float> colors,
     TensorView<float> gaussian_opacities
 ) {
     Gaussian g;
-    g.position = positions[idx];
-    g.rotation = rotations[idx];
-    g.scale = scales[idx];
-    g.color = colors[idx];
+    g.position = float3(positions[uint2(idx, 0)], positions[uint2(idx, 1)], positions[uint2(idx, 2)]);
+    g.rotation = float4(rotations[uint2(idx, 0)], rotations[uint2(idx, 1)], rotations[uint2(idx, 2)], rotations[uint2(idx, 3)]);
+    g.scale = float3(scales[uint2(idx, 0)], scales[uint2(idx, 1)], scales[uint2(idx, 2)]);
+    g.color = float3(colors[uint2(idx, 0)], colors[uint2(idx, 1)], colors[uint2(idx, 2)]);
     g.opacity = gaussian_opacities[idx];
     return g;
 }

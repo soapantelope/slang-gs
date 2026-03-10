@@ -57,7 +57,7 @@ Camera loadCameraFromTensors(
     TensorView<float> viewMatrix_t,
     TensorView<float> projMatrix_t,
     uint canvas_width, uint canvas_height,
-    float focalLength,
+    float focalLength
 ) {
     Camera cam;
     cam.viewMatrix = loadFloat4x4FromTensor(viewMatrix_t);
@@ -65,6 +65,7 @@ Camera loadCameraFromTensors(
     cam.projMatrix = loadFloat4x4FromTensor(projMatrix_t);
     cam.canvasSize = uint2(canvas_width, canvas_height);
     cam.focalLength = focalLength;
+    cam.num_tiles = int2(NUM_TILES_PER_DIM, NUM_TILES_PER_DIM);
     return cam;
 }
 
@@ -103,10 +104,10 @@ public float4 render(uint2 tid, RendererUniform uniforms)
 [AutoPyBindCUDA]
 [CUDAKernel]
 public void preprocessGaussians(
-    TensorView<float3> positions,
-    TensorView<float4> rotations,
-    TensorView<float3> scales,
-    TensorView<float3> colors,
+    TensorView<float> positions,
+    TensorView<float> rotations,
+    TensorView<float> scales,
+    TensorView<float> colors,
     TensorView<float> gaussian_opacities,
     TensorView<float> viewMatrix_t,
     TensorView<float> projMatrix_t,
@@ -117,9 +118,9 @@ public void preprocessGaussians(
     TensorView<int> tile_ranges_touched,
     TensorView<int> radii,
     TensorView<float> opacities,
-    TensorView<float3> centers,
-    TensorView<float2x2> inv_cov2Ds,
-    TensorView<float3> rgbs
+    TensorView<float> centers,
+    TensorView<float> inv_cov2Ds,
+    TensorView<float> rgbs
 )
 {
     uint tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
@@ -165,30 +166,36 @@ public void preprocessGaussians(
     tile_ranges_touched[uint2(tid, 3)] = bounds.maxY;
     radii[tid] = (uint32_t) pixel_radius;
     opacities[tid] = gaussian.opacity;
-    centers[tid] = float3(pixel_center, screen_center.z);
-    inv_cov2Ds[tid] = invCov2D;
-    rgbs[tid] = rgb;
+    centers[uint2(tid, 0)] = pixel_center.x;
+    centers[uint2(tid, 1)] = pixel_center.y;
+    centers[uint2(tid, 2)] = screen_center.z;
+    inv_cov2Ds[uint3(tid, 0, 0)] = invCov2D[0][0];
+    inv_cov2Ds[uint3(tid, 0, 1)] = invCov2D[0][1];
+    inv_cov2Ds[uint3(tid, 1, 0)] = invCov2D[1][0];
+    inv_cov2Ds[uint3(tid, 1, 1)] = invCov2D[1][1];
+    rgbs[uint2(tid, 0)] = rgb.x;
+    rgbs[uint2(tid, 1)] = rgb.y;
+    rgbs[uint2(tid, 2)] = rgb.z;
 }
 
 [AutoPyBindCUDA]
 [CUDAKernel]
 public void renderGaussians(
-    int2 tile_size,
     TensorView<int> gaussian_idxs, 
     TensorView<int> tile_range_starts,
     TensorView<int> tile_range_ends,
-    TensorView<float2x2> inv_cov2Ds,
-    TensorView<float3> centers,
-    TensorView<float3> rgbs,
+    TensorView<float> inv_cov2Ds,
+    TensorView<float> centers,
+    TensorView<float> rgbs,
     TensorView<float> opacities,
-    TensorView<float4> result
+    TensorView<float> result
 )
 {
     int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
     int tile_idx = cudaBlockIdx().y * NUM_TILES_PER_DIM + cudaBlockIdx().x;
     int tile_start_idx = tile_range_starts[tile_idx];
     int tile_end_idx = tile_range_ends[tile_idx];
-    int num_threads_in_block = tile_size.x * tile_size.y;
+    int num_threads_in_block = cudaBlockDim().x * cudaBlockDim().y;
 
     int num_gaussians_left = tile_end_idx - tile_start_idx;
     int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;
@@ -202,8 +209,14 @@ public void renderGaussians(
         int offset = num_threads_in_block * i + thread_idx;
         if (tile_start_idx + offset < tile_end_idx) {
             int gaussian_idx = gaussian_idxs[tile_start_idx + offset];
-            ProjectedGaussian projected_gaussian = initProjectedGaussian(rgbs[gaussian_idx], centers[gaussian_idx].xy, opacities[gaussian_idx], inv_cov2Ds[gaussian_idx]);
-            gaussians_in_threadgroup[thread_idx] = projected_gaussian;
+            float3 g_rgb = float3(rgbs[uint2(gaussian_idx, 0)], rgbs[uint2(gaussian_idx, 1)], rgbs[uint2(gaussian_idx, 2)]);
+            float2 g_center = float2(centers[uint2(gaussian_idx, 0)], centers[uint2(gaussian_idx, 1)]);
+            float g_opacity = opacities[gaussian_idx];
+            float2x2 g_inv_cov = float2x2(
+                inv_cov2Ds[uint3(gaussian_idx, 0, 0)], inv_cov2Ds[uint3(gaussian_idx, 0, 1)],
+                inv_cov2Ds[uint3(gaussian_idx, 1, 0)], inv_cov2Ds[uint3(gaussian_idx, 1, 1)]
+            );
+            gaussians_in_threadgroup[thread_idx] = initProjectedGaussian(g_rgb, g_center, g_opacity, g_inv_cov);
         }
         AllMemoryBarrierWithGroupSync();
 
@@ -219,7 +232,10 @@ public void renderGaussians(
         }
         num_gaussians_left -= num_gaussians_left_in_threadgroup;
     }
-    result[pixel_idx] = float4(color, 1.0 - transmittance);
+    result[uint3(pixel_idx.x, pixel_idx.y, 0)] = color.r;
+    result[uint3(pixel_idx.x, pixel_idx.y, 1)] = color.g;
+    result[uint3(pixel_idx.x, pixel_idx.y, 2)] = color.b;
+    result[uint3(pixel_idx.x, pixel_idx.y, 3)] = 1.0 - transmittance;
 }
 
 [AutoPyBindCUDA]
@@ -227,15 +243,15 @@ public void renderGaussians(
 public void makeDict(
     TensorView<int> tiles_touched_prefix_sum,
     TensorView<int> tile_ranges_touched,
-    TensorView<float3> centers,
+    TensorView<float> centers,
     TensorView<int64_t> tile_and_depth_keys_buf,
-    TensorView<int> gauss_idx_vals_buf,
+    TensorView<int> gauss_idx_vals_buf
 ) {
-    uint32_t tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
+    uint tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
     if (tid >= centers.size(0))
         return;
 
-    uint32_t start_idx = tiles_touched_prefix_sum[tid];
+    int start_idx = tiles_touched_prefix_sum[tid];
     int4 tile_range_touched = int4(
         tile_ranges_touched[uint2(tid, 0)],
         tile_ranges_touched[uint2(tid, 1)],
@@ -247,9 +263,9 @@ public void makeDict(
         for (int j = tile_range_touched.z; j < tile_range_touched.w; j++) {
             uint64_t tile_idx = j * NUM_TILES_PER_DIM + i;
             tile_idx <<= 32;
-            uint32_t depth = ~reinterpret<uint32_t>(-centers[tid].z);
-            int64_t key = tile_idx | depth;
-            tile_and_depth_keys_buf[start_idx] = key;
+            uint32_t depth = ~reinterpret<uint32_t>(-centers[uint2(tid, 2)]);
+            uint64_t key = tile_idx | depth;
+            tile_and_depth_keys_buf[start_idx] = reinterpret<int64_t>(key);
             gauss_idx_vals_buf[start_idx] = tid;
 
             start_idx++;
@@ -265,15 +281,15 @@ public void prefixSumTiles(
     TensorView<int> tile_range_starts,
     TensorView<int> tile_range_ends
 ) {
-    uint32_t tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
+    uint tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
     if (tid >= total_tiles_touched)
         return;
 
-    uint32_t tile_idx_touched = (uint32_t) (sorted_tile_and_depth_keys_buf[tid] >> 32);
+    uint32_t tile_idx_touched = (uint32_t) (reinterpret<uint64_t>(sorted_tile_and_depth_keys_buf[tid]) >> 32);
     if (tid == 0) {
         tile_range_starts[tile_idx_touched] = 0;
     } else {
-        uint32_t prev_tile_idx_touched = (uint32_t) (sorted_tile_and_depth_keys_buf[tid - 1] >> 32);
+        uint32_t prev_tile_idx_touched = (uint32_t) (reinterpret<uint64_t>(sorted_tile_and_depth_keys_buf[tid - 1]) >> 32);
         if (tile_idx_touched != prev_tile_idx_touched) {
             tile_range_ends[prev_tile_idx_touched] = tid;
             tile_range_starts[tile_idx_touched] = tid;

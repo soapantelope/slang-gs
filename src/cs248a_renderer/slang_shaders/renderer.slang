@@ -198,7 +198,7 @@ public void renderGaussians(
 
     int num_gaussians_left = tile_end_idx - tile_start_idx;
     int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;
-    int thread_idx = cudaThreadIdx().y + cudaBlockDim().x + cudaThreadIdx().x;
+    int thread_idx = cudaThreadIdx().y * cudaBlockDim().x + cudaThreadIdx().x;
 
     float transmittance = 1.0;
     float3 color = float3(0.0, 0.0, 0.0);

@@ -1,8 +1,0 @@
-# Misc
-.DS_Store
-.direnv/
-
-# Python
-__pycache__/
-.ipynb_checkpoints/
-.venv/

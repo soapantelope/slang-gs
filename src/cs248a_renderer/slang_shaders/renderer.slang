@@ -43,6 +43,7 @@ public struct RendererUniform
 
 static const int NUM_TILES_PER_DIM = 32;
 groupshared ProjectedGaussian gaussians_in_threadgroup[NUM_TILES_PER_DIM * NUM_TILES_PER_DIM];
+groupshared int gaussian_idxs_in_threadgroup[NUM_TILES_PER_DIM * NUM_TILES_PER_DIM];
 
 float4x4 loadFloat4x4FromTensor(TensorView<float> t) {
     return float4x4(
@@ -179,15 +180,17 @@ public void preprocessGaussians(
 
 [AutoPyBindCUDA]
 [CUDAKernel]
+[BackwardDerivative(bwdRenderGaussians)]
 public void renderGaussians(
     TensorView<int> gaussian_idxs, 
     TensorView<int> tile_range_starts,
     TensorView<int> tile_range_ends,
-    TensorView<float> inv_cov2Ds,
-    TensorView<float> centers,
-    TensorView<float> rgbs,
-    TensorView<float> opacities,
-    TensorView<float> result
+    DiffTensorView<float> inv_cov2Ds,
+    DiffTensorView<float> centers,
+    DiffTensorView<float> rgbs,
+    DiffTensorView<float> opacities,
+    TensorView<float> result,
+    TensorView<int> num_gaussians_used
 )
 {
     int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
@@ -200,8 +203,9 @@ public void renderGaussians(
     int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;
     int thread_idx = cudaThreadIdx().y * cudaBlockDim().x + cudaThreadIdx().x;
 
-    float transmittance = 1.0;
-    float3 color = float3(0.0, 0.0, 0.0);
+    float4 color = float4(0.0, 0.0, 0.0, 1.0);
+
+    int thread_gaussians_used = 0;
 
     for (int i = 0; i < num_memory_loops; i++) {
         AllMemoryBarrierWithGroupSync();
@@ -215,26 +219,100 @@ public void renderGaussians(
                 inv_cov2Ds[uint3(gaussian_idx, 0, 0)], inv_cov2Ds[uint3(gaussian_idx, 0, 1)],
                 inv_cov2Ds[uint3(gaussian_idx, 1, 0)], inv_cov2Ds[uint3(gaussian_idx, 1, 1)]
             );
-            gaussians_in_threadgroup[thread_idx] = initProjectedGaussian(g_rgb, g_center, g_opacity, g_inv_cov);
+            gaussian_idxs_in_threadgroup[thread_idx] = gaussian_idx;
+            gaussians_in_threadgroup[thread_idx] = initProjectedGaussian(gaussian_idx, inv_cov2Ds, centers, rgbs, opacities);
         }
         AllMemoryBarrierWithGroupSync();
 
         int num_gaussians_left_in_threadgroup = min(num_threads_in_block, num_gaussians_left);
         for (int i = 0; i < num_gaussians_left_in_threadgroup; i++) {
-            if (transmittance < 0.001) break;
+            if (color.w < 0.001) {
+                break;
+            }
+            thread_gaussians_used++;
 
-            ProjectedGaussian gaussian = gaussians_in_threadgroup[i];
-            float2 x = float2(pixel_idx.x - gaussian.screen_center.x, pixel_idx.y - gaussian.screen_center.y);
-            float alpha = exp(-0.5 * dot(x, mul(gaussian.inv_cov2D, x))) * gaussian.opacity;
-            color += transmittance * alpha * gaussian.rgb;
-            transmittance *= (1.0 - alpha);
+            float4 pix_gaussian_color = computePixelGaussianColor(gaussians_in_threadgroup[i], pixel_idx);
+            color = computeNewPixelColor(pix_gaussian_color, color);
         }
         num_gaussians_left -= num_gaussians_left_in_threadgroup;
     }
     result[uint3(pixel_idx.y, pixel_idx.x, 0)] = color.r;
     result[uint3(pixel_idx.y, pixel_idx.x, 1)] = color.g;
     result[uint3(pixel_idx.y, pixel_idx.x, 2)] = color.b;
-    result[uint3(pixel_idx.y, pixel_idx.x, 3)] = 1.0 - transmittance;
+    result[uint3(pixel_idx.y, pixel_idx.x, 3)] = 1.0 - color.w;
+    num_gaussians_used[uint2(pixel_idx.y, pixel_idx.x)] = thread_gaussians_used;
+}
+
+[AutoPyBindCUDA]
+[CUDAKernel]
+public void bwdRenderGaussians(
+    TensorView<int> gaussian_idxs,
+    TensorView<int> tile_range_starts,
+    TensorView<int> tile_range_ends,
+    DiffTensorView<float> inv_cov2Ds,
+    DiffTensorView<float> centers,
+    DiffTensorView<float> rgbs,
+    DiffTensorView<float> opacities,
+    TensorView<float> result,
+    TensorView<int> num_gaussians_used,
+    float4 d_cur_pix,
+) {
+    int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
+    int tile_idx = cudaBlockIdx().y * NUM_TILES_PER_DIM + cudaBlockIdx().x;
+    int tile_start_idx = tile_range_starts[tile_idx];
+    int tile_end_idx = tile_range_ends[tile_idx];
+    int num_threads_in_block = cudaBlockDim().x * cudaBlockDim().y;
+
+    int num_gaussians_left = tile_end_idx - tile_start_idx;
+    int num_memory_loops = (num_gaussians_left + num_threads_in_block -  1) / num_threads_in_block;
+    int thread_idx = cudaThreadIdx().y * cudaBlockDim().x + cudaThreadIdx().x;
+
+    // get current pixel color and opacity
+    float4 cur_pixel_color = float4(
+        result[uint3(pixel_idx.y, pixel_idx.x, 0)],
+        result[uint3(pixel_idx.y, pixel_idx.x, 1)],
+        result[uint3(pixel_idx.y, pixel_idx.x, 2)],
+        result[uint3(pixel_idx.y, pixel_idx.x, 3)]
+    );
+    int thread_gaussians_used = num_gaussians_used[uint2(pixel_idx.y, pixel_idx.x)];
+    
+    for (int i = 0; i < num_memory_loops; i++) {
+        AllMemoryBarrierWithGroupSync();
+        int offset = num_threads_in_block * i + thread_idx;
+        if (tile_start_idx + offset < tile_end_idx) {
+            int gaussian_idx = gaussian_idxs[tile_end_idx - 1 - offset];
+            gaussians_in_threadgroup[thread_idx] = initProjectedGaussian(gaussian_idx, inv_cov2Ds, centers, rgbs, opacities);
+        }
+        AllMemoryBarrierWithGroupSync();
+
+        int num_gaussians_left_in_threadgroup = min(num_threads_in_block, num_gaussians_left);
+        for (int i = 0; i < num_gaussians_left_in_threadgroup; i++) {
+            num_gaussians_left--;
+            if (num_gaussians_left >= thread_gaussians_used) continue;
+
+            ProjectedGaussian gaussian = gaussians_in_threadgroup[i];
+            int gaussian_idx = gaussian_idxs_in_threadgroup[i];
+
+            float4 pix_gaussian_color = computePixelGaussianColor(gaussian, pixel_idx);
+            float4 prev_pix_color = computePrevPixelColor(pix_gaussian_color, cur_pixel_color);
+
+            // DL/D_cur_pix_color -> DL/D_prev_pix_color, DL/D_gaussian_color
+            DifferentialPair<float4> d_prev_pix = diffPair(cur_pixel_color);
+            DifferentialPair<float4> d_gaussian_color = diffPair(pix_gaussian_color);
+            bwd_diff(computeNewPixelColor)(d_gaussian_color, d_prev_pix, d_cur_pix);
+
+            // DL/D_gaussian_color -> DL/D_proj_gauss, DL/D_pix_coord
+            DifferentialPair<ProjectedGaussian> d_proj_gaussian = diffPair(gaussian);
+            DifferentialPair<float2> d_pix_coord = diffPair((float2) pixel_idx);
+            bwd_diff(computePixelGaussianColor)(d_proj_gaussian, d_pix_coord, d_gaussian_color.d);
+
+            // DL/D_proj_gauss -> DL/D_proj_gauss_params
+            bwd_diff(initProjectedGaussian)(gaussian_idx, inv_cov2Ds, centers, rgbs, opacities, d_proj_gaussian.d);
+
+            // update DL/D_cur_pix_color to DL/D_prev_pix_color
+            d_cur_pix = d_prev_pix.d;
+        }
+    }
 }
 
 [AutoPyBindCUDA]

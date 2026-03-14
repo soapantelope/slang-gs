@@ -7792,7 +7792,7 @@ __device__ ulonglong unpackAnyValue8_1(AnyValue8 * _S12)
 }
 
 
-#line 21 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 34 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 struct Gaussian_0
 {
     float3  position_0;
@@ -7803,58 +7803,58 @@ struct Gaussian_0
 };
 
 
-#line 131
+#line 144
 __device__ Gaussian_0 loadGaussianFromTensors_0(uint idx_0, TensorView positions_0, TensorView rotations_0, TensorView scales_0, TensorView colors_0, TensorView gaussian_opacities_0)
 {
 
-#line 139
+#line 152
     Gaussian_0 g_0;
     float _S13 = ((positions_0).load<float>((idx_0), (0U)));
 
-#line 140
+#line 153
     float _S14 = ((positions_0).load<float>((idx_0), (1U)));
 
-#line 140
+#line 153
     float _S15 = ((positions_0).load<float>((idx_0), (2U)));
 
-#line 140
+#line 153
     (&g_0)->position_0 = make_float3 (_S13, _S14, _S15);
     float _S16 = ((rotations_0).load<float>((idx_0), (0U)));
 
-#line 141
+#line 154
     float _S17 = ((rotations_0).load<float>((idx_0), (1U)));
 
-#line 141
+#line 154
     float _S18 = ((rotations_0).load<float>((idx_0), (2U)));
 
-#line 141
+#line 154
     float _S19 = ((rotations_0).load<float>((idx_0), (3U)));
 
-#line 141
+#line 154
     (&g_0)->rotation_0 = make_float4 (_S16, _S17, _S18, _S19);
     float _S20 = ((scales_0).load<float>((idx_0), (0U)));
 
-#line 142
+#line 155
     float _S21 = ((scales_0).load<float>((idx_0), (1U)));
 
-#line 142
+#line 155
     float _S22 = ((scales_0).load<float>((idx_0), (2U)));
 
-#line 142
+#line 155
     (&g_0)->scale_0 = make_float3 (_S20, _S21, _S22);
     float _S23 = ((colors_0).load<float>((idx_0), (0U)));
 
-#line 143
+#line 156
     float _S24 = ((colors_0).load<float>((idx_0), (1U)));
 
-#line 143
+#line 156
     float _S25 = ((colors_0).load<float>((idx_0), (2U)));
 
-#line 143
+#line 156
     (&g_0)->color_0 = make_float3 (_S23, _S24, _S25);
     float _S26 = ((gaussian_opacities_0).load<float>((idx_0)));
 
-#line 144
+#line 157
     (&g_0)->opacity_0 = _S26;
     return g_0;
 }
@@ -8089,11 +8089,11 @@ __device__ float2  mul_1(Matrix<float, 2, 2>  left_1, float2  right_1)
 }
 
 
-#line 33 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 46 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ float3  Gaussian_mul_homogeneous_0(Gaussian_0 * this_0, Matrix<float, 4, 4>  mat_0, float3  vec_0)
 {
 
-#line 34
+#line 47
     float4  res_homogeneous_0 = mul_0(mat_0, make_float4 (vec_0.x, vec_0.y, vec_0.z, 1.0f));
 
     return float3 {(res_homogeneous_0 / make_float4 (res_homogeneous_0.w)).x, (res_homogeneous_0 / make_float4 (res_homogeneous_0.w)).y, (res_homogeneous_0 / make_float4 (res_homogeneous_0.w)).z};
@@ -8282,20 +8282,20 @@ __device__ Matrix<float, 3, 3>  mul_3(Matrix<float, 3, 3>  left_3, Matrix<float,
 }
 
 
-#line 40 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 53 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ float3  Gaussian_projectPoint_0(Gaussian_0 * this_1, Camera_0 * cam_1)
 {
 
-#line 40
+#line 53
     Matrix<float, 4, 4>  _S45 = cam_1->viewMatrix_0;
 
-#line 40
+#line 53
     float3  _S46 = this_1->position_0;
 
-#line 40
+#line 53
     float3  _S47 = Gaussian_mul_homogeneous_0(this_1, cam_1->viewMatrix_0, this_1->position_0);
 
-#line 40
+#line 53
     float3  _S48 = Gaussian_mul_homogeneous_0(this_1, mul_2(cam_1->projMatrix_0, _S45), _S46);
 
 
@@ -8399,11 +8399,11 @@ __device__ float3  clamp_1(float3  x_3, float3  minBound_1, float3  maxBound_1)
 }
 
 
-#line 29 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 42 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ float3  Gaussian_computeSHColor_0(Gaussian_0 * this_2, Camera_0 * cam_2)
 {
 
-#line 30
+#line 43
     return clamp_1(this_2->color_0 + make_float3 (0.20000000298023224f, 0.20000000298023224f, 0.20000000298023224f), make_float3 (0.0f), make_float3 (1.0f));
 }
 
@@ -8545,42 +8545,42 @@ __device__ Matrix<float, 3, 3>  linalg_transpose_0(Matrix<float, 3, 3>  x_8)
 }
 
 
-#line 70 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 83 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ Matrix<float, 3, 3>  Gaussian_getCov3D_0(Gaussian_0 * this_3)
 {
 
-#line 71
+#line 84
     float4  rot_quat_norm_0 = normalize_0(this_3->rotation_0);
 
-#line 71
+#line 84
     float y_4 = rot_quat_norm_0.z;
 
-#line 78
+#line 91
     float _S49 = y_4 * y_4;
 
-#line 78
+#line 91
     float _S50 = rot_quat_norm_0.w * rot_quat_norm_0.w;
 
-#line 78
+#line 91
     float _S51 = rot_quat_norm_0.y * rot_quat_norm_0.z;
 
-#line 78
+#line 91
     float _S52 = rot_quat_norm_0.x * rot_quat_norm_0.w;
 
-#line 78
+#line 91
     float _S53 = rot_quat_norm_0.y * rot_quat_norm_0.w;
 
-#line 78
+#line 91
     float _S54 = rot_quat_norm_0.x * rot_quat_norm_0.z;
     float _S55 = rot_quat_norm_0.y * rot_quat_norm_0.y;
 
-#line 79
+#line 92
     float _S56 = rot_quat_norm_0.z * rot_quat_norm_0.w;
 
-#line 79
+#line 92
     float _S57 = rot_quat_norm_0.x * rot_quat_norm_0.y;
 
-#line 88
+#line 101
     Matrix<float, 3, 3>  transform_mat_0 = mul_3(makeMatrix<float, 3, 3> (1.0f - 2.0f * (_S49 + _S50), 2.0f * (_S51 - _S52), 2.0f * (_S53 + _S54), 2.0f * (_S51 + _S52), 1.0f - 2.0f * (_S55 + _S50), 2.0f * (_S56 - _S57), 2.0f * (_S53 - _S54), 2.0f * (_S56 + _S57), 1.0f - 2.0f * (_S55 + _S49)), makeMatrix<float, 3, 3> (*&((&this_3->scale_0)->x), 0.0f, 0.0f, 0.0f, *&((&this_3->scale_0)->y), 0.0f, 0.0f, 0.0f, *&((&this_3->scale_0)->z)));
 
 
@@ -8596,33 +8596,33 @@ __device__ float2  Camera_getFOV_0(Camera_0 * this_4)
 }
 
 
-#line 47 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 60 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ Matrix<float, 3, 3>  Gaussian_getJacobian_0(Gaussian_0 * this_5, Camera_0 * cam_3)
 {
 
-#line 47
+#line 60
     float2  _S58 = Camera_getFOV_0(cam_3);
 
     float hx_0 = float(cam_3->canvasSize_0.x) / (2.0f * (F32_tan((_S58.x / 2.0f))));
     float hy_0 = float(cam_3->canvasSize_0.y) / (2.0f * (F32_tan((_S58.y / 2.0f))));
 
-#line 50
+#line 63
     float3  _S59 = Gaussian_mul_homogeneous_0(this_5, cam_3->viewMatrix_0, this_5->position_0);
 
-#line 55
+#line 68
     float _S60 = _S59.z;
 
-#line 55
+#line 68
     float _S61 = _S60 * _S60;
 
-#line 60
+#line 73
     return makeMatrix<float, 3, 3> (hx_0 / _S60, 0.0f, - (hx_0 * _S59.x) / _S61, 0.0f, hy_0 / _S60, - (hy_0 * _S59.y) / _S61, 0.0f, 0.0f, 0.0f);
 }
 
 __device__ Matrix<float, 2, 2>  Gaussian_cov3Dto2D_0(Gaussian_0 * this_6, Matrix<float, 3, 3>  cov3D_0, Camera_0 * cam_4)
 {
 
-#line 63
+#line 76
     Matrix<float, 3, 3>  _S62 = Gaussian_getJacobian_0(this_6, cam_4);
 
     Matrix<float, 3, 3>  left_4 = mul_3(_S62, makeMatrix<float, 3, 3> (float3 {cam_4->viewMatrix_0[int(0)].x, cam_4->viewMatrix_0[int(0)].y, cam_4->viewMatrix_0[int(0)].z}, float3 {cam_4->viewMatrix_0[int(1)].x, cam_4->viewMatrix_0[int(1)].y, cam_4->viewMatrix_0[int(1)].z}, float3 {cam_4->viewMatrix_0[int(2)].x, cam_4->viewMatrix_0[int(2)].y, cam_4->viewMatrix_0[int(2)].z}));
@@ -8631,41 +8631,41 @@ __device__ Matrix<float, 2, 2>  Gaussian_cov3Dto2D_0(Gaussian_0 * this_6, Matrix
 }
 
 
-#line 94
+#line 107
 __device__ float Gaussian_getDet2D_0(Gaussian_0 * this_7, Matrix<float, 2, 2>  mat_1)
 {
 
-#line 95
+#line 108
     return mat_1.rows[int(0)].x * mat_1.rows[int(1)].y - mat_1.rows[int(0)].y * mat_1.rows[int(1)].x;
 }
 
 
-#line 107
+#line 120
 __device__ float Gaussian_getPixelRadius_0(Gaussian_0 * this_8, Matrix<float, 2, 2>  cov2D_0)
 {
 
-#line 108
+#line 121
     float half_trace_0 = (cov2D_0.rows[int(0)].x + cov2D_0.rows[int(1)].y) / 2.0f;
     float _S64 = half_trace_0 * half_trace_0;
 
-#line 109
+#line 122
     float _S65 = Gaussian_getDet2D_0(this_8, cov2D_0);
 
-#line 109
+#line 122
     float _S66 = (F32_sqrt((_S64 - _S65)));
 
     return (F32_ceil((3.0f * (F32_sqrt(((F32_max((half_trace_0 + _S66), (half_trace_0 - _S66)))))))));
 }
 
 
-#line 98
+#line 111
 __device__ Matrix<float, 2, 2>  Gaussian_invertCov2D_0(Gaussian_0 * this_9, Matrix<float, 2, 2>  cov2D_1)
 {
 
-#line 99
+#line 112
     Matrix<float, 2, 2>  _S67 = makeMatrix<float, 2, 2> (cov2D_1.rows[int(1)].y, - cov2D_1.rows[int(0)].y, - cov2D_1.rows[int(1)].x, cov2D_1.rows[int(0)].x);
 
-#line 99
+#line 112
     float _S68 = Gaussian_getDet2D_0(this_9, cov2D_1);
 
 
@@ -8704,7 +8704,7 @@ __device__ int2  Camera_getTileDims_0(Camera_0 * this_11)
 }
 
 
-#line 124 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 137 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 struct RectBounds_0
 {
     int minX_0;
@@ -8714,67 +8714,67 @@ struct RectBounds_0
 };
 
 
-#line 124
+#line 137
 __device__ RectBounds_0 RectBounds_x24init_0(int minX_1, int maxX_1, int minY_1, int maxY_1)
 {
 
-#line 124
+#line 137
     RectBounds_0 _S75;
     (&_S75)->minX_0 = minX_1;
     (&_S75)->maxX_0 = maxX_1;
     (&_S75)->minY_0 = minY_1;
     (&_S75)->maxY_0 = maxY_1;
 
-#line 124
+#line 137
     return _S75;
 }
 
 
-#line 114
+#line 127
 __device__ RectBounds_0 Gaussian_getRectTileBounds_0(Gaussian_0 * this_12, Camera_0 * cam_5, float2  pixel_center_0, float pixel_radius_0)
 {
     float _S76 = pixel_center_0.x;
 
-#line 116
+#line 129
     float _S77 = _S76 - pixel_radius_0;
 
-#line 116
+#line 129
     int2  _S78 = Camera_getTileDims_0(cam_5);
 
-#line 116
+#line 129
     int2  _S79 = cam_5->num_tiles_0;
 
-#line 116
+#line 129
     float _S80 = float(cam_5->num_tiles_0.x);
 
-#line 116
+#line 129
     int _S81 = int((F32_floor((clamp_0(_S77 / float(_S78.x), 0.0f, _S80)))));
     float _S82 = _S76 + pixel_radius_0;
 
-#line 117
+#line 130
     int2  _S83 = Camera_getTileDims_0(cam_5);
 
-#line 117
+#line 130
     int _S84 = int((F32_ceil((clamp_0(_S82 / float(_S83.x), 0.0f, _S80)))));
     float _S85 = pixel_center_0.y;
 
-#line 118
+#line 131
     float _S86 = _S85 - pixel_radius_0;
 
-#line 118
+#line 131
     int2  _S87 = Camera_getTileDims_0(cam_5);
 
-#line 118
+#line 131
     float _S88 = float(_S79.y);
 
-#line 118
+#line 131
     int _S89 = int((F32_floor((clamp_0(_S86 / float(_S87.y), 0.0f, _S88)))));
     float _S90 = _S85 + pixel_radius_0;
 
-#line 119
+#line 132
     int2  _S91 = Camera_getTileDims_0(cam_5);
 
-#line 115
+#line 128
     return RectBounds_x24init_0(_S81, _S84, _S89, int((F32_ceil((clamp_0(_S90 / float(_S91.y), 0.0f, _S88))))));
 }
 
@@ -8911,6 +8911,58 @@ __global__ void __kernel__preprocessGaussians(TensorView positions_1, TensorView
 }
 
 
+#line 251
+__global__ void __kernel__bwdRenderGaussians(TensorView gaussian_idxs_0, TensorView tile_range_starts_0, TensorView tile_range_ends_0, TensorView inv_cov2Ds_1, TensorView centers_1, TensorView rgbs_1, TensorView opacities_1, TensorView result_10, TensorView num_gaussians_used_0)
+{
+
+#line 262
+    uint3  _S116 = ((blockIdx));
+
+#line 262
+    uint3  _S117 = ((blockDim));
+
+#line 262
+    uint2  _S118 = uint2 {(_S116 * _S117 + ((threadIdx))).x, (_S116 * _S117 + ((threadIdx))).y};
+
+#line 262
+    int2  _S119 = make_int2 ((int)_S118.x, (int)_S118.y);
+
+    uint _S120 = uint(int(_S116.y * 32U + _S116.x));
+
+#line 264
+    int _S121 = ((tile_range_starts_0).load<int>((_S120)));
+    int _S122 = ((tile_range_ends_0).load<int>((_S120)));
+    int num_threads_in_block_0 = int(_S117.x * _S117.y);
+
+
+    int _S123 = (_S122 - _S121 + num_threads_in_block_0 - int(1)) / num_threads_in_block_0;
+
+#line 274
+    uint _S124 = uint(_S119.y);
+
+#line 274
+    uint _S125 = uint(_S119.x);
+
+#line 273
+    float _S126 = ((result_10).load<float>((_S124), (_S125), (0U)));
+
+#line 273
+    float _S127 = ((result_10).load<float>((_S124), (_S125), (1U)));
+
+#line 273
+    float _S128 = ((result_10).load<float>((_S124), (_S125), (2U)));
+
+#line 273
+    float _S129 = ((result_10).load<float>((_S124), (_S125), (3U)));
+
+#line 279
+    int _S130 = ((num_gaussians_used_0).load<int>((_S124), (_S125)));
+
+#line 316
+    return;
+}
+
+
 #line 4 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 struct ProjectedGaussian_0
 {
@@ -8925,11 +8977,11 @@ struct ProjectedGaussian_0
 __device__ __shared__ FixedArray<ProjectedGaussian_0, 1024>  gaussians_in_threadgroup_0;
 
 
-#line 12 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
+#line 19 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/./primitive/gaussian.slang"
 __device__ ProjectedGaussian_0 initProjectedGaussian_0(float3  rgb_1, float2  screen_center_1, float opacity_2, Matrix<float, 2, 2>  inv_cov2D_1)
 {
 
-#line 13
+#line 20
     ProjectedGaussian_0 projected_gaussian_0;
     (&projected_gaussian_0)->rgb_0 = rgb_1;
     (&projected_gaussian_0)->screen_center_0 = screen_center_1;
@@ -8939,361 +8991,392 @@ __device__ ProjectedGaussian_0 initProjectedGaussian_0(float3  rgb_1, float2  sc
 }
 
 
-#line 182 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/renderer.slang"
-__global__ void __kernel__renderGaussians(TensorView gaussian_idxs_0, TensorView tile_range_starts_0, TensorView tile_range_ends_0, TensorView inv_cov2Ds_1, TensorView centers_1, TensorView rgbs_1, TensorView opacities_1, TensorView result_10)
+#line 11
+__device__ float4  ProjectedGaussian_computePixelGaussianColor_0(ProjectedGaussian_0 * this_13, int2  pixel_idx_0)
 {
 
-#line 193
-    uint3  _S116 = ((blockIdx));
+#line 12
+    float2  x_9 = make_float2 (float(pixel_idx_0.x) - this_13->screen_center_0.x, float(pixel_idx_0.y) - this_13->screen_center_0.y);
+    float alpha_0 = (F32_exp((-0.5f * dot_0(x_9, mul_1(this_13->inv_cov2D_0, x_9))))) * this_13->opacity_1;
 
-#line 193
-    uint3  _S117 = ((blockDim));
+    return make_float4 ((make_float3 (alpha_0) * this_13->rgb_0).x, (make_float3 (alpha_0) * this_13->rgb_0).y, (make_float3 (alpha_0) * this_13->rgb_0).z, alpha_0);
+}
 
-#line 193
-    uint3  _S118 = ((threadIdx));
 
-#line 193
-    uint2  _S119 = uint2 {(_S116 * _S117 + _S118).x, (_S116 * _S117 + _S118).y};
+#line 28
+__device__ float4  computeNewPixelColor_0(float4  pix_gaussian_color_0, float4  orig_pix_color_0)
+{
 
-#line 193
-    int2  _S120 = make_int2 ((int)_S119.x, (int)_S119.y);
+#line 29
+    float _S131 = orig_pix_color_0.w;
 
-    uint _S121 = uint(int(_S116.y * 32U + _S116.x));
+    return make_float4 ((float3 {orig_pix_color_0.x, orig_pix_color_0.y, orig_pix_color_0.z} + make_float3 (_S131) * float3 {pix_gaussian_color_0.x, pix_gaussian_color_0.y, pix_gaussian_color_0.z}).x, (float3 {orig_pix_color_0.x, orig_pix_color_0.y, orig_pix_color_0.z} + make_float3 (_S131) * float3 {pix_gaussian_color_0.x, pix_gaussian_color_0.y, pix_gaussian_color_0.z}).y, (float3 {orig_pix_color_0.x, orig_pix_color_0.y, orig_pix_color_0.z} + make_float3 (_S131) * float3 {pix_gaussian_color_0.x, pix_gaussian_color_0.y, pix_gaussian_color_0.z}).z, _S131 * (1.0f - pix_gaussian_color_0.w));
+}
+
+
+#line 183 "/viscam/u/sophiazh/slang-gs/src/cs248a_renderer/slang_shaders/renderer.slang"
+__global__ void __kernel__renderGaussians(TensorView gaussian_idxs_1, TensorView tile_range_starts_1, TensorView tile_range_ends_1, TensorView inv_cov2Ds_2, TensorView centers_2, TensorView rgbs_2, TensorView opacities_2, TensorView result_11, TensorView num_gaussians_used_1)
+{
 
 #line 195
-    int _S122 = ((tile_range_starts_0).load<int>((_S121)));
-    int _S123 = ((tile_range_ends_0).load<int>((_S121)));
-    uint _S124 = _S117.x;
+    uint3  _S132 = ((blockIdx));
+
+#line 195
+    uint3  _S133 = ((blockDim));
+
+#line 195
+    uint3  _S134 = ((threadIdx));
+
+#line 195
+    uint2  _S135 = uint2 {(_S132 * _S133 + _S134).x, (_S132 * _S133 + _S134).y};
+
+#line 195
+    int2  _S136 = make_int2 ((int)_S135.x, (int)_S135.y);
+
+    uint _S137 = uint(int(_S132.y * 32U + _S132.x));
 
 #line 197
-    int num_threads_in_block_0 = int(_S124 * _S117.y);
+    int _S138 = ((tile_range_starts_1).load<int>((_S137)));
+    int _S139 = ((tile_range_ends_1).load<int>((_S137)));
+    uint _S140 = _S133.x;
 
-    int num_gaussians_left_0 = _S123 - _S122;
-    int _S125 = (num_gaussians_left_0 + num_threads_in_block_0 - int(1)) / num_threads_in_block_0;
-    int _S126 = int(_S118.y * _S124 + _S118.x);
+#line 199
+    int num_threads_in_block_1 = int(_S140 * _S133.y);
 
+    int num_gaussians_left_0 = _S139 - _S138;
+    int _S141 = (num_gaussians_left_0 + num_threads_in_block_1 - int(1)) / num_threads_in_block_1;
+    int _S142 = int(_S134.y * _S140 + _S134.x);
 
-    float3  _S127 = make_float3 (0.0f, 0.0f, 0.0f);
+#line 203
+    float4  color_1 = make_float4 (0.0f, 0.0f, 0.0f, 1.0f);
 
-#line 204
+#line 203
     int i_8 = int(0);
 
-#line 204
+#line 203
     int num_gaussians_left_1 = num_gaussians_left_0;
 
-#line 204
-    float transmittance_0 = 1.0f;
+#line 203
+    int thread_gaussians_used_0 = int(0);
 
-#line 204
-    float3  color_1 = _S127;
-
+#line 209
     for(;;)
     {
 
-#line 206
-        if(i_8 < _S125)
+#line 209
+        if(i_8 < _S141)
         {
         }
         else
         {
 
-#line 206
+#line 209
             break;
         }
 
-#line 207
+#line 210
         __syncthreads();
 
-        int _S128 = _S122 + (num_threads_in_block_0 * i_8 + _S126);
+        int _S143 = _S138 + (num_threads_in_block_1 * i_8 + _S142);
 
-#line 209
-        if(_S128 < _S123)
+#line 212
+        if(_S143 < _S139)
         {
 
-#line 210
-            int _S129 = ((gaussian_idxs_0).load<int>((uint(_S128))));
-            uint _S130 = uint(_S129);
+#line 213
+            int _S144 = ((gaussian_idxs_1).load<int>((uint(_S143))));
+            uint _S145 = uint(_S144);
 
-#line 211
-            float _S131 = ((rgbs_1).load<float>((_S130), (0U)));
+#line 214
+            float _S146 = ((rgbs_2).load<float>((_S145), (0U)));
 
-#line 211
-            float _S132 = ((rgbs_1).load<float>((_S130), (1U)));
+#line 214
+            float _S147 = ((rgbs_2).load<float>((_S145), (1U)));
 
-#line 211
-            float _S133 = ((rgbs_1).load<float>((_S130), (2U)));
+#line 214
+            float _S148 = ((rgbs_2).load<float>((_S145), (2U)));
 
-#line 211
-            float3  g_rgb_0 = make_float3 (_S131, _S132, _S133);
-            float _S134 = ((centers_1).load<float>((_S130), (0U)));
+#line 214
+            float3  g_rgb_0 = make_float3 (_S146, _S147, _S148);
+            float _S149 = ((centers_2).load<float>((_S145), (0U)));
+
+#line 215
+            float _S150 = ((centers_2).load<float>((_S145), (1U)));
+
+#line 215
+            float2  g_center_0 = make_float2 (_S149, _S150);
+            float _S151 = ((opacities_2).load<float>((_S145)));
+            float _S152 = ((inv_cov2Ds_2).load<float>((_S145), (0U), (0U)));
+
+#line 217
+            float _S153 = ((inv_cov2Ds_2).load<float>((_S145), (0U), (1U)));
+
+#line 217
+            float _S154 = ((inv_cov2Ds_2).load<float>((_S145), (1U), (0U)));
+
+#line 217
+            float _S155 = ((inv_cov2Ds_2).load<float>((_S145), (1U), (1U)));
+
+
+
+            (*&gaussians_in_threadgroup_0)[_S142] = initProjectedGaussian_0(g_rgb_0, g_center_0, _S151, makeMatrix<float, 2, 2> (_S152, _S153, _S154, _S155));
 
 #line 212
-            float _S135 = ((centers_1).load<float>((_S130), (1U)));
-
-#line 212
-            float2  g_center_0 = make_float2 (_S134, _S135);
-            float _S136 = ((opacities_1).load<float>((_S130)));
-            float _S137 = ((inv_cov2Ds_1).load<float>((_S130), (0U), (0U)));
-
-#line 214
-            float _S138 = ((inv_cov2Ds_1).load<float>((_S130), (0U), (1U)));
-
-#line 214
-            float _S139 = ((inv_cov2Ds_1).load<float>((_S130), (1U), (0U)));
-
-#line 214
-            float _S140 = ((inv_cov2Ds_1).load<float>((_S130), (1U), (1U)));
-
-
-
-            (*&gaussians_in_threadgroup_0)[_S126] = initProjectedGaussian_0(g_rgb_0, g_center_0, _S136, makeMatrix<float, 2, 2> (_S137, _S138, _S139, _S140));
-
-#line 209
         }
 
-#line 220
+#line 223
         __syncthreads();
 
-        int _S141 = (I32_min((num_threads_in_block_0), (num_gaussians_left_1)));
+        int _S156 = (I32_min((num_threads_in_block_1), (num_gaussians_left_1)));
 
-#line 222
+#line 225
         int i_9 = int(0);
         for(;;)
         {
 
-#line 223
-            if(i_9 < _S141)
+#line 226
+            if(i_9 < _S156)
             {
             }
             else
             {
 
-#line 223
+#line 226
                 break;
             }
 
-#line 224
-            if(transmittance_0 < 0.00100000004749745f)
+#line 227
+            if((color_1.w) < 0.00100000004749745f)
             {
 
-#line 224
+#line 228
                 break;
             }
+            int _S157 = thread_gaussians_used_0 + int(1);
 
-            float2  x_9 = make_float2 (float(_S120.x) - (*&gaussians_in_threadgroup_0)[i_9].screen_center_0.x, float(_S120.y) - (*&gaussians_in_threadgroup_0)[i_9].screen_center_0.y);
-            float alpha_0 = (F32_exp((-0.5f * dot_0(x_9, mul_1((*&gaussians_in_threadgroup_0)[i_9].inv_cov2D_0, x_9))))) * (*&gaussians_in_threadgroup_0)[i_9].opacity_1;
-            float3  color_2 = color_1 + make_float3 (transmittance_0 * alpha_0) * (*&gaussians_in_threadgroup_0)[i_9].rgb_0;
-            float transmittance_1 = transmittance_0 * (1.0f - alpha_0);
+#line 230
+            ProjectedGaussian_0 _S158 = (*&gaussians_in_threadgroup_0)[i_9];
 
-#line 223
-            i_9 = i_9 + int(1);
+#line 230
+            float4  _S159 = ProjectedGaussian_computePixelGaussianColor_0(&_S158, _S136);
 
-#line 223
-            transmittance_0 = transmittance_1;
+#line 238
+            float4  _S160 = computeNewPixelColor_0(_S159, color_1);
 
-#line 223
-            color_1 = color_2;
+#line 226
+            int _S161 = i_9 + int(1);
 
-#line 223
+#line 226
+            color_1 = _S160;
+
+#line 226
+            i_9 = _S161;
+
+#line 226
+            thread_gaussians_used_0 = _S157;
+
+#line 226
         }
 
-#line 232
-        int num_gaussians_left_2 = num_gaussians_left_1 - _S141;
+#line 240
+        int num_gaussians_left_2 = num_gaussians_left_1 - _S156;
 
-#line 206
+#line 209
         i_8 = i_8 + int(1);
 
-#line 206
+#line 209
         num_gaussians_left_1 = num_gaussians_left_2;
 
-#line 206
+#line 209
     }
 
-#line 234
-    uint _S142 = uint(_S120.y);
+#line 242
+    uint _S162 = uint(_S136.y);
 
-#line 234
-    uint _S143 = uint(_S120.x);
+#line 242
+    uint _S163 = uint(_S136.x);
 
-#line 234
-    (result_10).store<float>((_S142), (_S143), (0U), (color_1.x));
-    (result_10).store<float>((_S142), (_S143), (1U), (color_1.y));
-    (result_10).store<float>((_S142), (_S143), (2U), (color_1.z));
-    (result_10).store<float>((_S142), (_S143), (3U), (1.0f - transmittance_0));
+#line 242
+    (result_11).store<float>((_S162), (_S163), (0U), (color_1.x));
+    (result_11).store<float>((_S162), (_S163), (1U), (color_1.y));
+    (result_11).store<float>((_S162), (_S163), (2U), (color_1.z));
+    (result_11).store<float>((_S162), (_S163), (3U), (1.0f - color_1.w));
+    (num_gaussians_used_1).store<int>((_S162), (_S163), (thread_gaussians_used_0));
     return;
 }
 
 
-__global__ void __kernel__makeDict(TensorView tiles_touched_prefix_sum_0, TensorView tile_ranges_touched_1, TensorView centers_2, TensorView tile_and_depth_keys_buf_0, TensorView gauss_idx_vals_buf_0)
+#line 320
+__global__ void __kernel__makeDict(TensorView tiles_touched_prefix_sum_0, TensorView tile_ranges_touched_1, TensorView centers_3, TensorView tile_and_depth_keys_buf_0, TensorView gauss_idx_vals_buf_0)
 {
 
-#line 249
+#line 327
     uint tid_1 = ((blockIdx)).x * ((blockDim)).x + ((threadIdx)).x;
-    uint _S144 = ((centers_2).sizes[(0U)]);
+    uint _S164 = ((centers_3).sizes[(0U)]);
 
-#line 250
-    if(tid_1 >= _S144)
+#line 328
+    if(tid_1 >= _S164)
     {
 
-#line 251
+#line 329
         return;
     }
-    int _S145 = ((tiles_touched_prefix_sum_0).load<int>((tid_1)));
-    int _S146 = ((tile_ranges_touched_1).load<int>((tid_1), (0U)));
+    int _S165 = ((tiles_touched_prefix_sum_0).load<int>((tid_1)));
+    int _S166 = ((tile_ranges_touched_1).load<int>((tid_1), (0U)));
 
-#line 254
-    int _S147 = ((tile_ranges_touched_1).load<int>((tid_1), (1U)));
+#line 332
+    int _S167 = ((tile_ranges_touched_1).load<int>((tid_1), (1U)));
 
-#line 254
-    int _S148 = ((tile_ranges_touched_1).load<int>((tid_1), (2U)));
+#line 332
+    int _S168 = ((tile_ranges_touched_1).load<int>((tid_1), (2U)));
 
-#line 254
-    int _S149 = ((tile_ranges_touched_1).load<int>((tid_1), (3U)));
+#line 332
+    int _S169 = ((tile_ranges_touched_1).load<int>((tid_1), (3U)));
 
-#line 254
-    int i_10 = _S146;
+#line 332
+    int i_10 = _S166;
 
-#line 254
-    int start_idx_0 = _S145;
+#line 332
+    int start_idx_0 = _S165;
 
-#line 261
+#line 339
     for(;;)
     {
 
-#line 261
-        if(i_10 < _S147)
+#line 339
+        if(i_10 < _S167)
         {
         }
         else
         {
 
-#line 261
+#line 339
             break;
         }
 
-#line 261
-        int j_2 = _S148;
+#line 339
+        int j_2 = _S168;
         for(;;)
         {
 
-#line 262
-            if(j_2 < _S149)
+#line 340
+            if(j_2 < _S169)
             {
             }
             else
             {
 
-#line 262
+#line 340
                 break;
             }
             ulonglong tile_idx_0 = ulonglong(j_2 * int(32) + i_10) << int(32);
-            float _S150 = ((centers_2).load<float>((tid_1), (2U)));
+            float _S170 = ((centers_3).load<float>((tid_1), (2U)));
 
-#line 265
-            AnyValue4 _S151 = packAnyValue4_0(- _S150);
+#line 343
+            AnyValue4 _S171 = packAnyValue4_0(- _S170);
 
-#line 265
-            uint _S152 = unpackAnyValue4_0(&_S151);
+#line 343
+            uint _S172 = unpackAnyValue4_0(&_S171);
 
-            uint _S153 = uint(start_idx_0);
+            uint _S173 = uint(start_idx_0);
 
-#line 267
-            AnyValue8 _S154 = packAnyValue8_1(tile_idx_0 | ulonglong(_S152));
+#line 345
+            AnyValue8 _S174 = packAnyValue8_1(tile_idx_0 | ulonglong(_S172));
 
-#line 267
-            longlong _S155 = unpackAnyValue8_0(&_S154);
+#line 345
+            longlong _S175 = unpackAnyValue8_0(&_S174);
 
-#line 267
-            (tile_and_depth_keys_buf_0).store<longlong>((_S153), (_S155));
-            (gauss_idx_vals_buf_0).store<int>((_S153), (int(tid_1)));
+#line 345
+            (tile_and_depth_keys_buf_0).store<longlong>((_S173), (_S175));
+            (gauss_idx_vals_buf_0).store<int>((_S173), (int(tid_1)));
 
-            int _S156 = start_idx_0 + int(1);
+            int _S176 = start_idx_0 + int(1);
 
-#line 262
+#line 340
             j_2 = j_2 + int(1);
 
-#line 262
-            start_idx_0 = _S156;
+#line 340
+            start_idx_0 = _S176;
 
-#line 262
+#line 340
         }
 
-#line 261
+#line 339
         i_10 = i_10 + int(1);
 
-#line 261
+#line 339
     }
 
-#line 273
+#line 351
     return;
 }
 
 
-__global__ void __kernel__prefixSumTiles(int total_tiles_touched_0, TensorView sorted_tile_and_depth_keys_buf_0, TensorView tile_range_starts_1, TensorView tile_range_ends_1)
+__global__ void __kernel__prefixSumTiles(int total_tiles_touched_0, TensorView sorted_tile_and_depth_keys_buf_0, TensorView tile_range_starts_2, TensorView tile_range_ends_2)
 {
 
-#line 283
+#line 361
     uint tid_2 = ((blockIdx)).x * ((blockDim)).x + ((threadIdx)).x;
     if(tid_2 >= uint(total_tiles_touched_0))
     {
 
-#line 285
+#line 363
         return;
     }
-    longlong _S157 = ((sorted_tile_and_depth_keys_buf_0).load<longlong>((tid_2)));
+    longlong _S177 = ((sorted_tile_and_depth_keys_buf_0).load<longlong>((tid_2)));
 
-#line 287
-    AnyValue8 _S158 = packAnyValue8_0(_S157);
+#line 365
+    AnyValue8 _S178 = packAnyValue8_0(_S177);
 
-#line 287
-    ulonglong _S159 = unpackAnyValue8_1(&_S158);
+#line 365
+    ulonglong _S179 = unpackAnyValue8_1(&_S178);
 
-#line 287
-    uint tile_idx_touched_0 = uint(_S159 >> int(32));
+#line 365
+    uint tile_idx_touched_0 = uint(_S179 >> int(32));
     if(tid_2 == 0U)
     {
 
-#line 289
-        (tile_range_starts_1).store<int>((tile_idx_touched_0), (int(0)));
+#line 367
+        (tile_range_starts_2).store<int>((tile_idx_touched_0), (int(0)));
 
-#line 288
+#line 366
     }
     else
     {
-        longlong _S160 = ((sorted_tile_and_depth_keys_buf_0).load<longlong>((tid_2 - 1U)));
+        longlong _S180 = ((sorted_tile_and_depth_keys_buf_0).load<longlong>((tid_2 - 1U)));
 
-#line 291
-        AnyValue8 _S161 = packAnyValue8_0(_S160);
+#line 369
+        AnyValue8 _S181 = packAnyValue8_0(_S180);
 
-#line 291
-        ulonglong _S162 = unpackAnyValue8_1(&_S161);
+#line 369
+        ulonglong _S182 = unpackAnyValue8_1(&_S181);
 
-#line 291
-        uint prev_tile_idx_touched_0 = uint(_S162 >> int(32));
+#line 369
+        uint prev_tile_idx_touched_0 = uint(_S182 >> int(32));
         if(tile_idx_touched_0 != prev_tile_idx_touched_0)
         {
 
-#line 293
-            int _S163 = int(tid_2);
+#line 371
+            int _S183 = int(tid_2);
 
-#line 293
-            (tile_range_ends_1).store<int>((prev_tile_idx_touched_0), (_S163));
-            (tile_range_starts_1).store<int>((tile_idx_touched_0), (_S163));
+#line 371
+            (tile_range_ends_2).store<int>((prev_tile_idx_touched_0), (_S183));
+            (tile_range_starts_2).store<int>((tile_idx_touched_0), (_S183));
 
-#line 292
+#line 370
         }
 
-#line 288
+#line 366
     }
 
-#line 297
+#line 375
     if(tid_2 == uint(total_tiles_touched_0 - int(1)))
     {
 
-#line 298
-        (tile_range_ends_1).store<int>((tile_idx_touched_0), (int(tid_2 + 1U)));
+#line 376
+        (tile_range_ends_2).store<int>((tile_idx_touched_0), (int(tid_2 + 1U)));
 
-#line 297
+#line 375
     }
 
 

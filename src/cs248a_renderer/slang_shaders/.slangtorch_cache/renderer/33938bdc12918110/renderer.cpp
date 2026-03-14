@@ -14355,436 +14355,562 @@ SLANG_PRELUDE_EXPORT
 void __kernel__preprocessGaussians(TensorView _0, TensorView _1, TensorView _2, TensorView _3, TensorView _4, TensorView _5, TensorView _6, uint32_t _7, uint32_t _8, float _9, TensorView _10, TensorView _11, TensorView _12, TensorView _13, TensorView _14, TensorView _15, TensorView _16);
 
 
-#line 182
+#line 251
 SLANG_PRELUDE_EXPORT
-void __kernel__renderGaussians(TensorView _0, TensorView _1, TensorView _2, TensorView _3, TensorView _4, TensorView _5, TensorView _6, TensorView _7);
+void __kernel__bwdRenderGaussians(TensorView _0, TensorView _1, TensorView _2, TensorView _3, TensorView _4, TensorView _5, TensorView _6, TensorView _7, TensorView _8);
 
 
-#line 242
+#line 183
+SLANG_PRELUDE_EXPORT
+void __kernel__renderGaussians(TensorView _0, TensorView _1, TensorView _2, TensorView _3, TensorView _4, TensorView _5, TensorView _6, TensorView _7, TensorView _8);
+
+
+#line 320
 SLANG_PRELUDE_EXPORT
 void __kernel__makeDict(TensorView _0, TensorView _1, TensorView _2, TensorView _3, TensorView _4);
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
 void __kernel__prefixSumTiles(int32_t _0, TensorView _1, TensorView _2, TensorView _3);
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
 void preprocessGaussians(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_0, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_0, torch::Tensor positions_0, torch::Tensor rotations_0, torch::Tensor scales_0, torch::Tensor colors_0, torch::Tensor gaussian_opacities_0, torch::Tensor viewMatrix_t_0, torch::Tensor projMatrix_t_0, uint32_t canvas_width_0, uint32_t canvas_height_0, float focalLength_0, torch::Tensor tiles_touched_0, torch::Tensor tile_ranges_touched_0, torch::Tensor radii_0, torch::Tensor opacities_0, torch::Tensor centers_0, torch::Tensor inv_cov2Ds_0, torch::Tensor rgbs_0)
 {
 
-#line 277
+#line 355
     Vector<uint32_t, 3>  _S1 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_0), std::get<int(1)>(_blockSize_0), std::get<int(2)>(_blockSize_0));
 
-#line 277
+#line 355
     Vector<uint32_t, 3>  _S2 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_0), std::get<int(1)>(_gridSize_0), std::get<int(2)>(_gridSize_0));
 
-#line 277
+#line 355
     TensorView _S3 = make_tensor_view(rotations_0, "rotations", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S4 = make_tensor_view(scales_0, "scales", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S5 = make_tensor_view(colors_0, "colors", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S6 = make_tensor_view(gaussian_opacities_0, "gaussian_opacities", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S7 = make_tensor_view(viewMatrix_t_0, "viewMatrix_t", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S8 = make_tensor_view(projMatrix_t_0, "projMatrix_t", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S9 = make_tensor_view(tiles_touched_0, "tiles_touched", torch::kInt32, false);
 
-#line 277
+#line 355
     TensorView _S10 = make_tensor_view(tile_ranges_touched_0, "tile_ranges_touched", torch::kInt32, false);
 
-#line 277
+#line 355
     TensorView _S11 = make_tensor_view(radii_0, "radii", torch::kInt32, false);
 
-#line 277
+#line 355
     TensorView _S12 = make_tensor_view(opacities_0, "opacities", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S13 = make_tensor_view(centers_0, "centers", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S14 = make_tensor_view(inv_cov2Ds_0, "inv_cov2Ds", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S15 = make_tensor_view(rgbs_0, "rgbs", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S16 = make_tensor_view(positions_0, "positions", torch::kFloat32, false);
 
-#line 277
+#line 355
     FixedArray<void *, 17>  _S17;
 
-#line 277
+#line 355
     _S17[int(0)] = &_S16;
 
-#line 277
+#line 355
     TensorView _S18 = _S3;
 
-#line 277
+#line 355
     _S17[int(1)] = &_S18;
 
-#line 277
+#line 355
     TensorView _S19 = _S4;
 
-#line 277
+#line 355
     _S17[int(2)] = &_S19;
 
-#line 277
+#line 355
     TensorView _S20 = _S5;
 
-#line 277
+#line 355
     _S17[int(3)] = &_S20;
 
-#line 277
+#line 355
     TensorView _S21 = _S6;
 
-#line 277
+#line 355
     _S17[int(4)] = &_S21;
 
-#line 277
+#line 355
     TensorView _S22 = _S7;
 
-#line 277
+#line 355
     _S17[int(5)] = &_S22;
 
-#line 277
+#line 355
     TensorView _S23 = _S8;
 
-#line 277
+#line 355
     _S17[int(6)] = &_S23;
 
-#line 277
+#line 355
     uint32_t _S24 = canvas_width_0;
 
-#line 277
+#line 355
     _S17[int(7)] = &_S24;
 
-#line 277
+#line 355
     uint32_t _S25 = canvas_height_0;
 
-#line 277
+#line 355
     _S17[int(8)] = &_S25;
 
-#line 277
+#line 355
     float _S26 = focalLength_0;
 
-#line 277
+#line 355
     _S17[int(9)] = &_S26;
 
-#line 277
+#line 355
     TensorView _S27 = _S9;
 
-#line 277
+#line 355
     _S17[int(10)] = &_S27;
 
-#line 277
+#line 355
     TensorView _S28 = _S10;
 
-#line 277
+#line 355
     _S17[int(11)] = &_S28;
 
-#line 277
+#line 355
     TensorView _S29 = _S11;
 
-#line 277
+#line 355
     _S17[int(12)] = &_S29;
 
-#line 277
+#line 355
     TensorView _S30 = _S12;
 
-#line 277
+#line 355
     _S17[int(13)] = &_S30;
 
-#line 277
+#line 355
     TensorView _S31 = _S13;
 
-#line 277
+#line 355
     _S17[int(14)] = &_S31;
 
-#line 277
+#line 355
     TensorView _S32 = _S14;
 
-#line 277
+#line 355
     _S17[int(15)] = &_S32;
 
-#line 277
+#line 355
     TensorView _S33 = _S15;
 
-#line 277
+#line 355
     _S17[int(16)] = &_S33;
 
-#line 277
+#line 355
     AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__preprocessGaussians), slang_bit_cast<dim3>(_S2), slang_bit_cast<dim3>(_S1), &_S17[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
 
-#line 277
+#line 355
     return;
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
 static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__preprocessGaussians()
 {
 
-#line 277
+#line 355
     return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("positions").getBuffer(), Slang::toTerminatedSlice("rotations").getBuffer(), Slang::toTerminatedSlice("scales").getBuffer(), Slang::toTerminatedSlice("colors").getBuffer(), Slang::toTerminatedSlice("gaussian_opacities").getBuffer(), Slang::toTerminatedSlice("viewMatrix_t").getBuffer(), Slang::toTerminatedSlice("projMatrix_t").getBuffer(), Slang::toTerminatedSlice("canvas_width").getBuffer(), Slang::toTerminatedSlice("canvas_height").getBuffer(), Slang::toTerminatedSlice("focalLength").getBuffer(), Slang::toTerminatedSlice("tiles_touched").getBuffer(), Slang::toTerminatedSlice("tile_ranges_touched").getBuffer(), Slang::toTerminatedSlice("radii").getBuffer(), Slang::toTerminatedSlice("opacities").getBuffer(), Slang::toTerminatedSlice("centers").getBuffer(), Slang::toTerminatedSlice("inv_cov2Ds").getBuffer(), Slang::toTerminatedSlice("rgbs").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
-void renderGaussians(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_1, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_1, torch::Tensor gaussian_idxs_0, torch::Tensor tile_range_starts_0, torch::Tensor tile_range_ends_0, torch::Tensor inv_cov2Ds_1, torch::Tensor centers_1, torch::Tensor rgbs_1, torch::Tensor opacities_1, torch::Tensor result_0)
+void bwdRenderGaussians(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_1, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_1, torch::Tensor gaussian_idxs_0, torch::Tensor tile_range_starts_0, torch::Tensor tile_range_ends_0, torch::Tensor inv_cov2Ds_1, torch::Tensor centers_1, torch::Tensor rgbs_1, torch::Tensor opacities_1, torch::Tensor result_0, torch::Tensor num_gaussians_used_0)
 {
 
-#line 277
+#line 355
     Vector<uint32_t, 3>  _S34 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_1), std::get<int(1)>(_blockSize_1), std::get<int(2)>(_blockSize_1));
 
-#line 277
+#line 355
     Vector<uint32_t, 3>  _S35 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_1), std::get<int(1)>(_gridSize_1), std::get<int(2)>(_gridSize_1));
 
-#line 277
+#line 355
     TensorView _S36 = make_tensor_view(tile_range_starts_0, "tile_range_starts", torch::kInt32, false);
 
-#line 277
+#line 355
     TensorView _S37 = make_tensor_view(tile_range_ends_0, "tile_range_ends", torch::kInt32, false);
 
-#line 277
+#line 355
     TensorView _S38 = make_tensor_view(inv_cov2Ds_1, "inv_cov2Ds", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S39 = make_tensor_view(centers_1, "centers", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S40 = make_tensor_view(rgbs_1, "rgbs", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S41 = make_tensor_view(opacities_1, "opacities", torch::kFloat32, false);
 
-#line 277
+#line 355
     TensorView _S42 = make_tensor_view(result_0, "result", torch::kFloat32, false);
 
-#line 277
-    TensorView _S43 = make_tensor_view(gaussian_idxs_0, "gaussian_idxs", torch::kInt32, false);
+#line 355
+    TensorView _S43 = make_tensor_view(num_gaussians_used_0, "num_gaussians_used", torch::kInt32, false);
 
-#line 277
-    FixedArray<void *, 8>  _S44;
+#line 355
+    TensorView _S44 = make_tensor_view(gaussian_idxs_0, "gaussian_idxs", torch::kInt32, false);
 
-#line 277
-    _S44[int(0)] = &_S43;
+#line 355
+    FixedArray<void *, 9>  _S45;
 
-#line 277
-    TensorView _S45 = _S36;
+#line 355
+    _S45[int(0)] = &_S44;
 
-#line 277
-    _S44[int(1)] = &_S45;
+#line 355
+    TensorView _S46 = _S36;
 
-#line 277
-    TensorView _S46 = _S37;
+#line 355
+    _S45[int(1)] = &_S46;
 
-#line 277
-    _S44[int(2)] = &_S46;
+#line 355
+    TensorView _S47 = _S37;
 
-#line 277
-    TensorView _S47 = _S38;
+#line 355
+    _S45[int(2)] = &_S47;
 
-#line 277
-    _S44[int(3)] = &_S47;
+#line 355
+    TensorView _S48 = _S38;
 
-#line 277
-    TensorView _S48 = _S39;
+#line 355
+    _S45[int(3)] = &_S48;
 
-#line 277
-    _S44[int(4)] = &_S48;
+#line 355
+    TensorView _S49 = _S39;
 
-#line 277
-    TensorView _S49 = _S40;
+#line 355
+    _S45[int(4)] = &_S49;
 
-#line 277
-    _S44[int(5)] = &_S49;
+#line 355
+    TensorView _S50 = _S40;
 
-#line 277
-    TensorView _S50 = _S41;
+#line 355
+    _S45[int(5)] = &_S50;
 
-#line 277
-    _S44[int(6)] = &_S50;
+#line 355
+    TensorView _S51 = _S41;
 
-#line 277
-    TensorView _S51 = _S42;
+#line 355
+    _S45[int(6)] = &_S51;
 
-#line 277
-    _S44[int(7)] = &_S51;
+#line 355
+    TensorView _S52 = _S42;
 
-#line 277
-    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__renderGaussians), slang_bit_cast<dim3>(_S35), slang_bit_cast<dim3>(_S34), &_S44[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+#line 355
+    _S45[int(7)] = &_S52;
 
-#line 277
+#line 355
+    TensorView _S53 = _S43;
+
+#line 355
+    _S45[int(8)] = &_S53;
+
+#line 355
+    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__bwdRenderGaussians), slang_bit_cast<dim3>(_S35), slang_bit_cast<dim3>(_S34), &_S45[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+
+#line 355
     return;
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
-static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__renderGaussians()
+static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__bwdRenderGaussians()
 {
 
-#line 277
-    return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("gaussian_idxs").getBuffer(), Slang::toTerminatedSlice("tile_range_starts").getBuffer(), Slang::toTerminatedSlice("tile_range_ends").getBuffer(), Slang::toTerminatedSlice("inv_cov2Ds").getBuffer(), Slang::toTerminatedSlice("centers").getBuffer(), Slang::toTerminatedSlice("rgbs").getBuffer(), Slang::toTerminatedSlice("opacities").getBuffer(), Slang::toTerminatedSlice("result").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
+#line 355
+    return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("gaussian_idxs").getBuffer(), Slang::toTerminatedSlice("tile_range_starts").getBuffer(), Slang::toTerminatedSlice("tile_range_ends").getBuffer(), Slang::toTerminatedSlice("inv_cov2Ds").getBuffer(), Slang::toTerminatedSlice("centers").getBuffer(), Slang::toTerminatedSlice("rgbs").getBuffer(), Slang::toTerminatedSlice("opacities").getBuffer(), Slang::toTerminatedSlice("result").getBuffer(), Slang::toTerminatedSlice("num_gaussians_used").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
-void makeDict(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_2, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_2, torch::Tensor tiles_touched_prefix_sum_0, torch::Tensor tile_ranges_touched_1, torch::Tensor centers_2, torch::Tensor tile_and_depth_keys_buf_0, torch::Tensor gauss_idx_vals_buf_0)
+void renderGaussians(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_2, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_2, torch::Tensor gaussian_idxs_1, torch::Tensor tile_range_starts_1, torch::Tensor tile_range_ends_1, torch::Tensor inv_cov2Ds_2, torch::Tensor centers_2, torch::Tensor rgbs_2, torch::Tensor opacities_2, torch::Tensor result_1, torch::Tensor num_gaussians_used_1)
 {
 
-#line 277
-    Vector<uint32_t, 3>  _S52 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_2), std::get<int(1)>(_blockSize_2), std::get<int(2)>(_blockSize_2));
+#line 355
+    Vector<uint32_t, 3>  _S54 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_2), std::get<int(1)>(_blockSize_2), std::get<int(2)>(_blockSize_2));
 
-#line 277
-    Vector<uint32_t, 3>  _S53 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_2), std::get<int(1)>(_gridSize_2), std::get<int(2)>(_gridSize_2));
+#line 355
+    Vector<uint32_t, 3>  _S55 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_2), std::get<int(1)>(_gridSize_2), std::get<int(2)>(_gridSize_2));
 
-#line 277
-    TensorView _S54 = make_tensor_view(tile_ranges_touched_1, "tile_ranges_touched", torch::kInt32, false);
+#line 355
+    TensorView _S56 = make_tensor_view(tile_range_starts_1, "tile_range_starts", torch::kInt32, false);
 
-#line 277
-    TensorView _S55 = make_tensor_view(centers_2, "centers", torch::kFloat32, false);
+#line 355
+    TensorView _S57 = make_tensor_view(tile_range_ends_1, "tile_range_ends", torch::kInt32, false);
 
-#line 277
-    TensorView _S56 = make_tensor_view(tile_and_depth_keys_buf_0, "tile_and_depth_keys_buf", torch::kInt64, false);
+#line 355
+    TensorView _S58 = make_tensor_view(inv_cov2Ds_2, "inv_cov2Ds", torch::kFloat32, false);
 
-#line 277
-    TensorView _S57 = make_tensor_view(gauss_idx_vals_buf_0, "gauss_idx_vals_buf", torch::kInt32, false);
+#line 355
+    TensorView _S59 = make_tensor_view(centers_2, "centers", torch::kFloat32, false);
 
-#line 277
-    TensorView _S58 = make_tensor_view(tiles_touched_prefix_sum_0, "tiles_touched_prefix_sum", torch::kInt32, false);
+#line 355
+    TensorView _S60 = make_tensor_view(rgbs_2, "rgbs", torch::kFloat32, false);
 
-#line 277
-    FixedArray<void *, 5>  _S59;
+#line 355
+    TensorView _S61 = make_tensor_view(opacities_2, "opacities", torch::kFloat32, false);
 
-#line 277
-    _S59[int(0)] = &_S58;
+#line 355
+    TensorView _S62 = make_tensor_view(result_1, "result", torch::kFloat32, false);
 
-#line 277
-    TensorView _S60 = _S54;
+#line 355
+    TensorView _S63 = make_tensor_view(num_gaussians_used_1, "num_gaussians_used", torch::kInt32, false);
 
-#line 277
-    _S59[int(1)] = &_S60;
+#line 355
+    TensorView _S64 = make_tensor_view(gaussian_idxs_1, "gaussian_idxs", torch::kInt32, false);
 
-#line 277
-    TensorView _S61 = _S55;
+#line 355
+    FixedArray<void *, 9>  _S65;
 
-#line 277
-    _S59[int(2)] = &_S61;
+#line 355
+    _S65[int(0)] = &_S64;
 
-#line 277
-    TensorView _S62 = _S56;
+#line 355
+    TensorView _S66 = _S56;
 
-#line 277
-    _S59[int(3)] = &_S62;
+#line 355
+    _S65[int(1)] = &_S66;
 
-#line 277
-    TensorView _S63 = _S57;
+#line 355
+    TensorView _S67 = _S57;
 
-#line 277
-    _S59[int(4)] = &_S63;
+#line 355
+    _S65[int(2)] = &_S67;
 
-#line 277
-    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__makeDict), slang_bit_cast<dim3>(_S53), slang_bit_cast<dim3>(_S52), &_S59[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+#line 355
+    TensorView _S68 = _S58;
 
-#line 277
+#line 355
+    _S65[int(3)] = &_S68;
+
+#line 355
+    TensorView _S69 = _S59;
+
+#line 355
+    _S65[int(4)] = &_S69;
+
+#line 355
+    TensorView _S70 = _S60;
+
+#line 355
+    _S65[int(5)] = &_S70;
+
+#line 355
+    TensorView _S71 = _S61;
+
+#line 355
+    _S65[int(6)] = &_S71;
+
+#line 355
+    TensorView _S72 = _S62;
+
+#line 355
+    _S65[int(7)] = &_S72;
+
+#line 355
+    TensorView _S73 = _S63;
+
+#line 355
+    _S65[int(8)] = &_S73;
+
+#line 355
+    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__renderGaussians), slang_bit_cast<dim3>(_S55), slang_bit_cast<dim3>(_S54), &_S65[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+
+#line 355
     return;
 }
 
 
-#line 277
+#line 355
+SLANG_PRELUDE_EXPORT
+static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__renderGaussians()
+{
+
+#line 355
+    return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("gaussian_idxs").getBuffer(), Slang::toTerminatedSlice("tile_range_starts").getBuffer(), Slang::toTerminatedSlice("tile_range_ends").getBuffer(), Slang::toTerminatedSlice("inv_cov2Ds").getBuffer(), Slang::toTerminatedSlice("centers").getBuffer(), Slang::toTerminatedSlice("rgbs").getBuffer(), Slang::toTerminatedSlice("opacities").getBuffer(), Slang::toTerminatedSlice("result").getBuffer(), Slang::toTerminatedSlice("num_gaussians_used").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
+}
+
+
+#line 355
+SLANG_PRELUDE_EXPORT
+void makeDict(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_3, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_3, torch::Tensor tiles_touched_prefix_sum_0, torch::Tensor tile_ranges_touched_1, torch::Tensor centers_3, torch::Tensor tile_and_depth_keys_buf_0, torch::Tensor gauss_idx_vals_buf_0)
+{
+
+#line 355
+    Vector<uint32_t, 3>  _S74 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_3), std::get<int(1)>(_blockSize_3), std::get<int(2)>(_blockSize_3));
+
+#line 355
+    Vector<uint32_t, 3>  _S75 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_3), std::get<int(1)>(_gridSize_3), std::get<int(2)>(_gridSize_3));
+
+#line 355
+    TensorView _S76 = make_tensor_view(tile_ranges_touched_1, "tile_ranges_touched", torch::kInt32, false);
+
+#line 355
+    TensorView _S77 = make_tensor_view(centers_3, "centers", torch::kFloat32, false);
+
+#line 355
+    TensorView _S78 = make_tensor_view(tile_and_depth_keys_buf_0, "tile_and_depth_keys_buf", torch::kInt64, false);
+
+#line 355
+    TensorView _S79 = make_tensor_view(gauss_idx_vals_buf_0, "gauss_idx_vals_buf", torch::kInt32, false);
+
+#line 355
+    TensorView _S80 = make_tensor_view(tiles_touched_prefix_sum_0, "tiles_touched_prefix_sum", torch::kInt32, false);
+
+#line 355
+    FixedArray<void *, 5>  _S81;
+
+#line 355
+    _S81[int(0)] = &_S80;
+
+#line 355
+    TensorView _S82 = _S76;
+
+#line 355
+    _S81[int(1)] = &_S82;
+
+#line 355
+    TensorView _S83 = _S77;
+
+#line 355
+    _S81[int(2)] = &_S83;
+
+#line 355
+    TensorView _S84 = _S78;
+
+#line 355
+    _S81[int(3)] = &_S84;
+
+#line 355
+    TensorView _S85 = _S79;
+
+#line 355
+    _S81[int(4)] = &_S85;
+
+#line 355
+    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__makeDict), slang_bit_cast<dim3>(_S75), slang_bit_cast<dim3>(_S74), &_S81[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+
+#line 355
+    return;
+}
+
+
+#line 355
 SLANG_PRELUDE_EXPORT
 static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__makeDict()
 {
 
-#line 277
+#line 355
     return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("tiles_touched_prefix_sum").getBuffer(), Slang::toTerminatedSlice("tile_ranges_touched").getBuffer(), Slang::toTerminatedSlice("centers").getBuffer(), Slang::toTerminatedSlice("tile_and_depth_keys_buf").getBuffer(), Slang::toTerminatedSlice("gauss_idx_vals_buf").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
-void prefixSumTiles(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_3, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_3, int32_t total_tiles_touched_0, torch::Tensor sorted_tile_and_depth_keys_buf_0, torch::Tensor tile_range_starts_1, torch::Tensor tile_range_ends_1)
+void prefixSumTiles(std::tuple<uint32_t, uint32_t, uint32_t> _blockSize_4, std::tuple<uint32_t, uint32_t, uint32_t> _gridSize_4, int32_t total_tiles_touched_0, torch::Tensor sorted_tile_and_depth_keys_buf_0, torch::Tensor tile_range_starts_2, torch::Tensor tile_range_ends_2)
 {
 
-#line 277
-    Vector<uint32_t, 3>  _S64 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_3), std::get<int(1)>(_blockSize_3), std::get<int(2)>(_blockSize_3));
+#line 355
+    Vector<uint32_t, 3>  _S86 = Vector<uint32_t, 3> (std::get<int(0)>(_blockSize_4), std::get<int(1)>(_blockSize_4), std::get<int(2)>(_blockSize_4));
 
-#line 277
-    Vector<uint32_t, 3>  _S65 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_3), std::get<int(1)>(_gridSize_3), std::get<int(2)>(_gridSize_3));
+#line 355
+    Vector<uint32_t, 3>  _S87 = Vector<uint32_t, 3> (std::get<int(0)>(_gridSize_4), std::get<int(1)>(_gridSize_4), std::get<int(2)>(_gridSize_4));
 
-#line 277
-    TensorView _S66 = make_tensor_view(sorted_tile_and_depth_keys_buf_0, "sorted_tile_and_depth_keys_buf", torch::kInt64, false);
+#line 355
+    TensorView _S88 = make_tensor_view(sorted_tile_and_depth_keys_buf_0, "sorted_tile_and_depth_keys_buf", torch::kInt64, false);
 
-#line 277
-    TensorView _S67 = make_tensor_view(tile_range_starts_1, "tile_range_starts", torch::kInt32, false);
+#line 355
+    TensorView _S89 = make_tensor_view(tile_range_starts_2, "tile_range_starts", torch::kInt32, false);
 
-#line 277
-    TensorView _S68 = make_tensor_view(tile_range_ends_1, "tile_range_ends", torch::kInt32, false);
+#line 355
+    TensorView _S90 = make_tensor_view(tile_range_ends_2, "tile_range_ends", torch::kInt32, false);
 
-#line 277
-    int32_t _S69 = total_tiles_touched_0;
+#line 355
+    int32_t _S91 = total_tiles_touched_0;
 
-#line 277
-    FixedArray<void *, 4>  _S70;
+#line 355
+    FixedArray<void *, 4>  _S92;
 
-#line 277
-    _S70[int(0)] = &_S69;
+#line 355
+    _S92[int(0)] = &_S91;
 
-#line 277
-    TensorView _S71 = _S66;
+#line 355
+    TensorView _S93 = _S88;
 
-#line 277
-    _S70[int(1)] = &_S71;
+#line 355
+    _S92[int(1)] = &_S93;
 
-#line 277
-    TensorView _S72 = _S67;
+#line 355
+    TensorView _S94 = _S89;
 
-#line 277
-    _S70[int(2)] = &_S72;
+#line 355
+    _S92[int(2)] = &_S94;
 
-#line 277
-    TensorView _S73 = _S68;
+#line 355
+    TensorView _S95 = _S90;
 
-#line 277
-    _S70[int(3)] = &_S73;
+#line 355
+    _S92[int(3)] = &_S95;
 
-#line 277
-    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__prefixSumTiles), slang_bit_cast<dim3>(_S65), slang_bit_cast<dim3>(_S64), &_S70[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
+#line 355
+    AT_CUDA_CHECK(cudaLaunchKernel((const void*)(__kernel__prefixSumTiles), slang_bit_cast<dim3>(_S87), slang_bit_cast<dim3>(_S86), &_S92[int(0)], 0, ((cudaStream_t)at::cuda::getCurrentCUDAStream())));
 
-#line 277
+#line 355
     return;
 }
 
 
-#line 277
+#line 355
 SLANG_PRELUDE_EXPORT
 static std::tuple<std::tuple<const char*, const char*, const char*, const char*, const char*, const char*>, std::tuple<const char*, const char*, const char*, const char*>, const char*, const char*> __funcinfo__prefixSumTiles()
 {
 
-#line 277
+#line 355
     return std::make_tuple(std::make_tuple(Slang::toTerminatedSlice("__blockSize").getBuffer(), Slang::toTerminatedSlice("__gridSize").getBuffer(), Slang::toTerminatedSlice("total_tiles_touched").getBuffer(), Slang::toTerminatedSlice("sorted_tile_and_depth_keys_buf").getBuffer(), Slang::toTerminatedSlice("tile_range_starts").getBuffer(), Slang::toTerminatedSlice("tile_range_ends").getBuffer()), std::make_tuple(Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer(), Slang::toTerminatedSlice("").getBuffer()), Slang::toTerminatedSlice(""), Slang::toTerminatedSlice(""));
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
     m.def("preprocessGaussians", &preprocessGaussians, "preprocessGaussians");
     m.def("__funcinfo__preprocessGaussians", &__funcinfo__preprocessGaussians, "__funcinfo__preprocessGaussians");
+    m.def("bwdRenderGaussians", &bwdRenderGaussians, "bwdRenderGaussians");
+    m.def("__funcinfo__bwdRenderGaussians", &__funcinfo__bwdRenderGaussians, "__funcinfo__bwdRenderGaussians");
     m.def("renderGaussians", &renderGaussians, "renderGaussians");
     m.def("__funcinfo__renderGaussians", &__funcinfo__renderGaussians, "__funcinfo__renderGaussians");
     m.def("makeDict", &makeDict, "makeDict");

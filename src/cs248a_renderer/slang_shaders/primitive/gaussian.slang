@@ -1,7 +1,7 @@
 implementing "../model.slang";
 import math;
 
-public struct ProjectedGaussian 
+public struct ProjectedGaussian : IDifferentiable
 {
     public float3 rgb;
     public float2 screen_center;
@@ -9,13 +9,44 @@ public struct ProjectedGaussian
     public float2x2 inv_cov2D;
 }
 
-public ProjectedGaussian initProjectedGaussian(float3 rgb, float2 screen_center, float opacity, float2x2 inv_cov2D) {
+[Differentiable]
+public float4 computePixelGaussianColor(ProjectedGaussian gaussian, float2 pixel_idx) {
+    float2 x = float2(pixel_idx.x - gaussian.screen_center.x, pixel_idx.y - gaussian.screen_center.y);
+    float alpha = exp(-0.5 * dot(x, mul(gaussian.inv_cov2D, x))) * gaussian.opacity;
+    float3 res_rgb = alpha * gaussian.rgb;
+    return float4(res_rgb, alpha);
+}
+
+[Differentiable]
+public ProjectedGaussian initProjectedGaussian(
+    int gaussian_idx,  
+    DiffTensorView<float> inv_cov2Ds,
+    DiffTensorView<float> centers,
+    DiffTensorView<float> rgbs,
+    DiffTensorView<float> opacities,
+) {
     ProjectedGaussian projected_gaussian;
-    projected_gaussian.rgb = rgb;
-    projected_gaussian.screen_center = screen_center;
-    projected_gaussian.opacity = opacity;
-    projected_gaussian.inv_cov2D = inv_cov2D;
+    projected_gaussian.rgb = float3(rgbs[uint2(gaussian_idx, 0)], rgbs[uint2(gaussian_idx, 1)], rgbs[uint2(gaussian_idx, 2)]);
+    projected_gaussian.screen_center = float2(centers[uint2(gaussian_idx, 0)], centers[uint2(gaussian_idx, 1)]);
+    projected_gaussian.opacity = opacities[gaussian_idx];
+    projected_gaussian.inv_cov2D = float2x2(
+        inv_cov2Ds[uint3(gaussian_idx, 0, 0)], inv_cov2Ds[uint3(gaussian_idx, 0, 1)],
+        inv_cov2Ds[uint3(gaussian_idx, 1, 0)], inv_cov2Ds[uint3(gaussian_idx, 1, 1)]
+    );
     return projected_gaussian;
+}
+
+[Differentiable]
+public float4 computeNewPixelColor(float4 pix_gaussian_color, float4 orig_pix_color) {
+    float3 rgb = orig_pix_color.rgb + orig_pix_color.w * pix_gaussian_color.rgb;
+    float transmittance = orig_pix_color.w * (1.0 - pix_gaussian_color.w);
+    return float4(rgb, transmittance);
+}
+
+public float4 computePrevPixelColor(float4 pix_gaussian_color, float4 cur_pix_color) {
+    float orig_transmittance = cur_pix_color.w / (1.0 - pix_gaussian_color.w);
+    float3 orig_rgb = cur_pix_color.rgb - orig_transmittance * pix_gaussian_color.rgb;
+    return float4(orig_rgb, orig_transmittance);
 }
 
 public struct Gaussian 

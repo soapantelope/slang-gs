@@ -359,8 +359,8 @@ class Renderer:
         num_tiles: glm.ivec2,
     ) -> None:
 
+        # print("time started")
         start_time = time.perf_counter()
-        print("time started")
 
         block_size = 256
 
@@ -380,7 +380,7 @@ class Renderer:
         inv_cov2Ds = torch.zeros((self._gaussian_count, 2, 2), dtype=torch.float32, device="cuda")
         rgbs = torch.zeros((self._gaussian_count, 3), dtype=torch.float32, device="cuda")
 
-        print("about to preprocess gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        # print("about to preprocess gaussians, timestamp: " + str(time.perf_counter() - start_time))
         self.renderer_cuda_module.preprocessGaussians(
             positions=self._gaussian_positions,
             rotations=self._gaussian_rotations,
@@ -403,20 +403,20 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
-        print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        # print("preprocessed gaussians, timestamp: " + str(time.perf_counter() - start_time))
 
         total_num_tiles = int(num_tiles.x) * int(num_tiles.y)
 
         tiles_touched_cumsum = torch.cumsum(tiles_touched, dim=0, dtype=torch.int32)
         total_tiles_touched = tiles_touched_cumsum[-1].item()
-        print("total tile-gaussian intersections: " + str(total_tiles_touched))
+        # print("total tile-gaussian intersections: " + str(total_tiles_touched))
 
         tiles_touched_prefix_sum = torch.cat([torch.zeros(1, dtype=torch.int32, device="cuda"), tiles_touched_cumsum])
 
         tile_and_depth_keys_buf = torch.zeros(total_tiles_touched, dtype=torch.int64, device="cuda")
         gauss_idx_vals_buf = torch.zeros(total_tiles_touched, dtype=torch.int32, device="cuda")
 
-        print("about to make keys, timestamp: " + str(time.perf_counter() - start_time))
+        # print("about to make keys, timestamp: " + str(time.perf_counter() - start_time))
         self.renderer_cuda_module.makeDict(
             tiles_touched_prefix_sum=tiles_touched_prefix_sum,
             tile_ranges_touched=tile_ranges_touched,
@@ -427,16 +427,16 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(self._gaussian_count, block_size), 1, 1),
         )
-        print("finished making keys, timestamp: " + str(time.perf_counter() - start_time))
+        # print("finished making keys, timestamp: " + str(time.perf_counter() - start_time))
 
-        print("starting sort, timestamp: " + str(time.perf_counter() - start_time))
+        # print("starting sort, timestamp: " + str(time.perf_counter() - start_time))
         sorted_tile_and_depth_keys_buf, sort_indices = torch.sort(tile_and_depth_keys_buf)
         sorted_gauss_idx_vals_buf = gauss_idx_vals_buf[sort_indices]
 
         tile_range_starts = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
         tile_range_ends = torch.zeros(total_num_tiles, dtype=torch.int32, device="cuda")
 
-        print("sorted, timestamp: " + str(time.perf_counter() - start_time))
+        # print("sorted, timestamp: " + str(time.perf_counter() - start_time))
 
         self.renderer_cuda_module.prefixSumTiles(
             total_tiles_touched=total_tiles_touched,
@@ -447,9 +447,9 @@ class Renderer:
             blockSize=(block_size, 1, 1),
             gridSize=(self.divide_ceil(total_tiles_touched, block_size), 1, 1),
         )
-        print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
+        # print("calculated tile ranges, timestamp: " + str(time.perf_counter() - start_time))
 
-        print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
+        # print("about to render gaussians, timestamp: " + str(time.perf_counter() - start_time))
         tile_size = glm.ivec2(self._render_target.width // num_tiles.x, self._render_target.height // num_tiles.y)
 
         result = torch.zeros(
@@ -457,21 +457,42 @@ class Renderer:
             dtype=torch.float32,
             device="cuda",
         )
+        num_gaussians_used = torch.zeros(
+            (self._render_target.height, self._render_target.width),
+            dtype=torch.int32,
+            device="cuda",
+        )
+
+        d_inv_cov2Ds = torch.zeros_like(inv_cov2Ds)
+        d_centers = torch.zeros_like(centers)
+        d_rgbs = torch.zeros_like(rgbs)
+        d_opacities = torch.zeros_like(opacities)
+
         self.renderer_cuda_module.renderGaussians(
             gaussian_idxs=sorted_gauss_idx_vals_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,
-            inv_cov2Ds=inv_cov2Ds,
-            centers=centers,
-            rgbs=rgbs,
-            opacities=opacities,
+            inv_cov2Ds=(inv_cov2Ds, d_inv_cov2Ds),
+            centers=(centers, d_centers),
+            rgbs=(rgbs, d_rgbs),
+            opacities=(opacities, d_opacities),
             result=result,
+            num_gaussians_used=num_gaussians_used
         ).launchRaw(
             gridSize=(num_tiles.x, num_tiles.y, 1),
             blockSize=(tile_size.x, tile_size.y, 1),
         )
         print("rendered gaussians, timestamp: " + str(time.perf_counter() - start_time))
         self._render_target.copy_from_numpy(result.cpu().numpy())
+
+
+    def render_gaussians_bwd(
+        self,
+        cam: PerspectiveCamera,
+        num_tiles: glm.ivec2
+    ) -> None:
+        
+
         
     def render(
         self,

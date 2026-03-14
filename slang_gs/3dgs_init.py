@@ -2,15 +2,13 @@ import torch
 import math
 import glm
 
-from cs248a_renderer import setup_device, RendererModules
-from cs248a_renderer.model.cameras import PerspectiveCamera
-from cs248a_renderer.model.gaussian_splat import GaussianSplat
-from cs248a_renderer.renderer.core_renderer import Renderer
+from renderer import Renderer
 from pathlib import Path
 
-from scene.gaussian_model import GaussianModel
-from utils.sh_utils import eval_sh
+# from scene.gaussian_model import GaussianModel
+# from utils.sh_utils import eval_sh
 
+# to insert with 3DGS
 def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, separate_sh = False, override_color = None, use_trained_exp=False):
     renderer = Renderer()
 

@@ -23,7 +23,7 @@ points = pd.DataFrame({
     'opacity': logit(np.array([0.99, 0.99, 0.99])),
 })
 
-out = Path(__file__).parent.parent / "resources" / "test.ply"
-out.parent.mkdir(parents=True, exist_ok=True)
+out = Path(__file__).parent.parent.parent / "resources" / "test.ply"
+out.parent.parent.mkdir(parents=True, exist_ok=True)
 PyntCloud(points).to_file(str(out))
 print(f"Wrote {out}")

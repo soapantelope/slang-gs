@@ -7,10 +7,14 @@ import glm
 from renderer import Renderer
 from pathlib import Path
 from gaussian_model import GaussianModel
+import slangtorch
+
+SHADER_PATH = Path(__file__).parent / "slang_shaders"
 
 # to insert with 3DGS
 def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, scaling_modifier=1.0, separate_sh=False, override_color=None, use_trained_exp=False):
     renderer = Renderer()
+    renderer_cuda_module = slangtorch.loadModule(str(SHADER_PATH / "renderer.slang"))
 
     positions =  pc.get_xyz
     rotations = pc.get_rotation
@@ -19,19 +23,24 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, sc
     opacities = pc.get_opacity
     num_gaussians = positions.shape[0]
 
-    renderer.load_gaussians(positions, rotations, scales, colors, opacities, num_gaussians)
-
     focal_x = viewpoint_camera.image_width / (2.0 * math.tan(viewpoint_camera.FoVx * 0.5))
     focal_y = viewpoint_camera.image_height / (2.0 * math.tan(viewpoint_camera.FoVy * 0.5))
 
-    rendered_image, viewspace_points, radii = renderer.render_gaussians(
-        view_matrix=viewpoint_camera.world_view_transform,
-        proj_matrix=viewpoint_camera.projection_matrix,
-        focal_length_x=focal_x,
-        focal_length_y=focal_y,
-        image_height=int(viewpoint_camera.image_height),
-        image_width=int(viewpoint_camera.image_width),
-        num_tiles=glm.ivec2(32, 32)
+    rendered_image, viewspace_points, radii = renderer.apply(
+        renderer_cuda_module,
+        positions,
+        rotations,
+        scales,
+        colors,
+        opacities,
+        num_gaussians,
+        viewpoint_camera.world_view_transform,
+        viewpoint_camera.projection_matrix,
+        focal_x,
+        focal_y,
+        int(viewpoint_camera.image_height),
+        int(viewpoint_camera.image_width),
+        glm.ivec2(32, 32)
     )
 
     out = {

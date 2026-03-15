@@ -36,32 +36,31 @@ Camera loadCameraFromTensors(
 
 [AutoPyBindCUDA]
 [CUDAKernel]
+[Differentiable]
 public void preprocessGaussians(
-    TensorView<float> positions,
-    TensorView<float> rotations,
-    TensorView<float> scales,
-    TensorView<float> colors,
-    TensorView<float> gaussian_opacities,
+    DiffTensorView<float> positions,
+    DiffTensorView<float> rotations,
+    DiffTensorView<float> scales,
+    DiffTensorView<float> colors,
     TensorView<float> viewMatrix_t,
     TensorView<float> projMatrix_t,
     uint canvas_width,
     uint canvas_height,
-    float focal_length_x,
-    float focal_length_y,
+    no_diff float focal_length_x,
+    no_diff float focal_length_y,
     TensorView<int> tiles_touched,
     TensorView<int> tile_ranges_touched,
     TensorView<int> radii,
-    TensorView<float> opacities,
-    TensorView<float> centers,
-    TensorView<float> inv_cov2Ds,
-    TensorView<float> rgbs
+    DiffTensorView<float> centers,
+    DiffTensorView<float> inv_cov2Ds,
+    DiffTensorView<float> rgbs
 )
 {
     uint tid = cudaBlockIdx().x * cudaBlockDim().x + cudaThreadIdx().x;
     if (tid >= positions.size(0))
         return;
 
-    Gaussian gaussian = loadGaussianFromTensors(tid, positions, rotations, scales, colors, gaussian_opacities);
+    Gaussian gaussian = loadGaussianFromTensors(tid, positions, rotations, scales, colors);
     Camera cam = loadCameraFromTensors(viewMatrix_t, projMatrix_t, canvas_width, canvas_height, float2(focal_length_x, focal_length_y));
 
     tiles_touched[tid] = 0;
@@ -71,26 +70,26 @@ public void preprocessGaussians(
     tile_ranges_touched[uint2(tid, 3)] = 0;
 
     // project center to screen space (NDC)
-    float3 screen_center = gaussian.projectPoint(cam);
+    float3 screen_center = projectPoint(gaussian, cam);
     if (screen_center.z >= -0.1) return;
 
     // compute spherical harmonic color
-    float3 rgb = gaussian.computeSHColor(cam);
+    float3 rgb = computeSHColor(gaussian, cam);
 
     // compute cov3D -> cov2D
-    float3x3 cov3D = gaussian.getCov3D();
-    float2x2 cov2D = gaussian.cov3Dto2D(cov3D, cam);
-    if (gaussian.getDet2D(cov2D) <= 0.0) return;
+    float3x3 cov3D = getCov3D(gaussian);
+    float2x2 cov2D = cov3Dto2D(gaussian, cov3D, cam);
+    if (getDet2D(cov2D) <= 0.0) return;
 
     // estimate pixel radius
-    float pixel_radius = gaussian.getPixelRadius(cov2D);
+    float pixel_radius = getPixelRadius(cov2D);
 
     // compute inverse cov2D
-    float2x2 invCov2D = gaussian.invertCov2D(cov2D);
+    float2x2 invCov2D = invertCov2D(cov2D);
 
     // 0.5 to dim + 0.5
-    float2 pixel_center = cam.ndcToPixel(screen_center);
-    RectBounds bounds = gaussian.getRectTileBounds(cam, pixel_center, pixel_radius);
+    float2 pixel_center = ndcToPixel(cam, screen_center);
+    RectBounds bounds = getRectTileBounds(cam, pixel_center, pixel_radius);
 
     // store this data for rasterization
     tiles_touched[tid] = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
@@ -99,7 +98,6 @@ public void preprocessGaussians(
     tile_ranges_touched[uint2(tid, 2)] = bounds.minY;
     tile_ranges_touched[uint2(tid, 3)] = bounds.maxY;
     radii[tid] = (uint32_t) pixel_radius;
-    opacities[tid] = gaussian.opacity;
     centers[uint2(tid, 0)] = pixel_center.x;
     centers[uint2(tid, 1)] = pixel_center.y;
     centers[uint2(tid, 2)] = screen_center.z;

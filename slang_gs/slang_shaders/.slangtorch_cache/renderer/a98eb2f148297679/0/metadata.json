@@ -1,0 +1,82 @@
+{
+    "cpp": {
+        "options": [],
+        "deps": [
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/renderer.slang",
+                1773608782.827489
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/math.slang",
+                1773555612.9572375
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/math/linalg.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/model.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/model/camera.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/primitive/gaussian.slang",
+                1773608722.3697762
+            ],
+            [
+                "/viscam/u/sophiazh/miniconda3/envs/slang/lib/python3.12/site-packages/slangtorch/bin/slangc",
+                1773005392.219762
+            ],
+            [
+                "/viscam/u/sophiazh/miniconda3/envs/slang/lib/python3.12/site-packages/slangtorch/bin/libslang-compiler.so.0.2026.2",
+                1773005392.0917668
+            ]
+        ],
+        "version": "1.3.19",
+        "includePaths": []
+    },
+    "cuda": {
+        "options": [],
+        "deps": [
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/renderer.slang",
+                1773608782.827489
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/math.slang",
+                1773555612.9572375
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/math/linalg.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/model.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/model/camera.slang",
+                1773555612.9612372
+            ],
+            [
+                "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/primitive/gaussian.slang",
+                1773608722.3697762
+            ],
+            [
+                "/viscam/u/sophiazh/miniconda3/envs/slang/lib/python3.12/site-packages/slangtorch/bin/slangc",
+                1773005392.219762
+            ],
+            [
+                "/viscam/u/sophiazh/miniconda3/envs/slang/lib/python3.12/site-packages/slangtorch/bin/libslang-compiler.so.0.2026.2",
+                1773005392.0917668
+            ]
+        ],
+        "version": "1.3.19",
+        "includePaths": []
+    },
+    "moduleName": "_slangtorch_renderer_a98eb2f148297679_0",
+    "moduleBinary": "/viscam/u/sophiazh/slang-gs/slang_gs/slang_shaders/.slangtorch_cache/renderer/a98eb2f148297679/0/_slangtorch_renderer_a98eb2f148297679_0.so"
+}

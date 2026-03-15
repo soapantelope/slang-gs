@@ -22,11 +22,11 @@ public struct Camera
         return float2(x, y);
     }
 
-    public float2 ndcToPixel(float3 ndc) {
-        return ((ndc.xy + 1.0) * canvasSize) * 0.5;
-    }
-
     public int2 getTileDims() {
         return (int2) (canvasSize / num_tiles);
     }
+}
+
+public float2 ndcToPixel(Camera cam, float3 ndc) {
+    return ((ndc.xy + 1.0) * cam.canvasSize) * 0.5;
 }

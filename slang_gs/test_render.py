@@ -1,3 +1,4 @@
+import argparse
 import torch
 import math
 from pathlib import Path
@@ -7,15 +8,12 @@ from gaussian_model import GaussianModel
 from viewpoint_camera import ViewpointCamera
 from init_3dgs import render
 
-PLY_PATH = Path(__file__).parent.parent / "resources" / "test.ply"
+parser = argparse.ArgumentParser()
+parser.add_argument("ply", type=Path, help="path to .ply file")
+args = parser.parse_args()
 
-if not PLY_PATH.exists():
-    raise FileNotFoundError(
-        f"{PLY_PATH} not found"
-    )
-
-pc = GaussianModel(str(PLY_PATH))
-print(f"Loaded {pc.get_xyz.shape[0]} gaussians from {PLY_PATH.name}")
+pc = GaussianModel(str(args.ply))
+print(f"Loaded {pc.get_xyz.shape[0]} gaussians from {args.ply.name}")
 
 cam = ViewpointCamera(
     position=[0.0, 0.0, 5.0],

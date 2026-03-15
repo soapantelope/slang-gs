@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import torch
 import math
 import glm
 
 from renderer import Renderer
 from pathlib import Path
-
-# from scene.gaussian_model import GaussianModel
-# from utils.sh_utils import eval_sh
+from gaussian_model import GaussianModel
 
 # to insert with 3DGS
-def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, scaling_modifier = 1.0, separate_sh = False, override_color = None, use_trained_exp=False):
+def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, scaling_modifier=1.0, separate_sh=False, override_color=None, use_trained_exp=False):
     renderer = Renderer()
 
     positions =  pc.get_xyz
@@ -26,7 +26,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     rendered_image, viewspace_points, radii = renderer.render_gaussians(
         view_matrix=viewpoint_camera.world_view_transform,
-        proj_matrix=viewpoint_camera.full_proj_transform,
+        proj_matrix=viewpoint_camera.projection_matrix,
         focal_length_x=focal_x,
         focal_length_y=focal_y,
         image_height=int(viewpoint_camera.image_height),

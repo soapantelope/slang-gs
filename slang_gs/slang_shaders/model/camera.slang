@@ -11,14 +11,14 @@ public struct Camera
     // The canvas size of the target image in pixels. W, H
     public uint2 canvasSize;
     // The focal length of the camera in pixels (distance between the pinhole and the image plane).
-    public float focalLength;
+    public float2 focalLength;
 
     // num tiles per dim 
     public int2 num_tiles;
 
     public float2 getFOV() {
-        float x = 2.0 * atan(0.5 * canvasSize.x  / focalLength);
-        float y = 2.0 * atan(0.5 * canvasSize.y / focalLength);
+        float x = 2.0 * atan(0.5 * canvasSize.x  / focalLength.x);
+        float y = 2.0 * atan(0.5 * canvasSize.y / focalLength.y);
         return float2(x, y);
     }
 

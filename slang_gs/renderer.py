@@ -1,11 +1,8 @@
 import time
 from pyglm import glm
-import numpy as np
-import torch
-from pathlib import Path
-
 import torch
 import slangtorch
+from pathlib import Path
 
 SHADER_PATH = Path(__file__).parent / "slang_shaders"
 
@@ -54,13 +51,8 @@ class Renderer:
 
         block_size = 256
 
-        view_mat_tensor = torch.as_tensor(
-            np.ascontiguousarray(view_matrix, dtype=torch.float32, device="cuda")
-        )
-        proj_mat_tensor = torch.as_tensor(
-            np.ascontiguousarray(proj_matrix),
-            dtype=torch.float32, device="cuda",
-        )
+        view_mat_tensor = view_matrix.contiguous()
+        proj_mat_tensor = proj_matrix.contiguous()
 
         tiles_touched = torch.zeros(self._gaussian_count, dtype=torch.int32, device="cuda")
         tile_ranges_touched = torch.zeros((self._gaussian_count, 4), dtype=torch.int32, device="cuda")
@@ -159,7 +151,7 @@ class Renderer:
         d_rgbs = torch.zeros_like(rgbs)
         d_opacities = torch.zeros_like(opacities)
 
-        self.renderer_cuda_module.renderGaussians(
+        self.renderer_cuda_module.renderGaussiansCUDAKernel(
             gaussian_idxs=sorted_gauss_idx_vals_buf,
             tile_range_starts=tile_range_starts,
             tile_range_ends=tile_range_ends,

@@ -20,7 +20,7 @@ Camera loadCameraFromTensors(
     TensorView<float> viewMatrix_t,
     TensorView<float> projMatrix_t,
     uint canvas_width, uint canvas_height,
-    float focalLength
+    float2 focalLength
 ) {
     Camera cam;
     cam.viewMatrix = loadFloat4x4FromTensor(viewMatrix_t);
@@ -44,7 +44,8 @@ public void preprocessGaussians(
     TensorView<float> projMatrix_t,
     uint canvas_width,
     uint canvas_height,
-    float focalLength,
+    float focal_length_x,
+    float focal_length_y,
     TensorView<int> tiles_touched,
     TensorView<int> tile_ranges_touched,
     TensorView<int> radii,
@@ -59,7 +60,7 @@ public void preprocessGaussians(
         return;
 
     Gaussian gaussian = loadGaussianFromTensors(tid, positions, rotations, scales, colors, gaussian_opacities);
-    Camera cam = loadCameraFromTensors(viewMatrix_t, projMatrix_t, canvas_width, canvas_height, focalLength);
+    Camera cam = loadCameraFromTensors(viewMatrix_t, projMatrix_t, canvas_width, canvas_height, float2(focal_length_x, focal_length_y));
 
     tiles_touched[tid] = 0;
     tile_ranges_touched[uint2(tid, 0)] = 0;
@@ -111,8 +112,7 @@ public void preprocessGaussians(
 
 [AutoPyBindCUDA]
 [CUDAKernel]
-[BackwardDerivative(bwdRenderGaussians)]
-public void renderGaussians(
+public void renderGaussiansCUDAKernel(
     TensorView<int> gaussian_idxs, 
     TensorView<int> tile_range_starts,
     TensorView<int> tile_range_ends,
@@ -122,12 +122,45 @@ public void renderGaussians(
     DiffTensorView<float> opacities,
     TensorView<float> result,
     TensorView<int> num_gaussians_used
-)
-{
+) {
     int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
     int tile_idx = cudaBlockIdx().y * NUM_TILES_PER_DIM + cudaBlockIdx().x;
     int tile_start_idx = tile_range_starts[tile_idx];
     int tile_end_idx = tile_range_ends[tile_idx];
+
+    float4 color = renderGaussians(
+        gaussian_idxs, 
+        pixel_idx,
+        tile_start_idx,
+        tile_end_idx,
+        inv_cov2Ds,
+        centers,
+        rgbs,
+        opacities,
+        result,
+        num_gaussians_used
+    );
+
+    result[uint3(pixel_idx.y, pixel_idx.x, 0)] = color.r;
+    result[uint3(pixel_idx.y, pixel_idx.x, 1)] = color.g;
+    result[uint3(pixel_idx.y, pixel_idx.x, 2)] = color.b;
+    result[uint3(pixel_idx.y, pixel_idx.x, 3)] = 1.0 - color.w;
+}
+
+[BackwardDerivative(bwdRenderGaussians)]
+public float4 renderGaussians(
+    TensorView<int> gaussian_idxs, 
+    int2 pixel_idx,
+    int tile_start_idx,
+    int tile_end_idx,
+    DiffTensorView<float> inv_cov2Ds,
+    DiffTensorView<float> centers,
+    DiffTensorView<float> rgbs,
+    DiffTensorView<float> opacities,
+    TensorView<float> result,
+    TensorView<int> num_gaussians_used
+)
+{
     int num_threads_in_block = cudaBlockDim().x * cudaBlockDim().y;
 
     int num_gaussians_left = tile_end_idx - tile_start_idx;
@@ -167,31 +200,23 @@ public void renderGaussians(
         }
         num_gaussians_left -= num_gaussians_left_in_threadgroup;
     }
-    result[uint3(pixel_idx.y, pixel_idx.x, 0)] = color.r;
-    result[uint3(pixel_idx.y, pixel_idx.x, 1)] = color.g;
-    result[uint3(pixel_idx.y, pixel_idx.x, 2)] = color.b;
-    result[uint3(pixel_idx.y, pixel_idx.x, 3)] = 1.0 - color.w;
     num_gaussians_used[uint2(pixel_idx.y, pixel_idx.x)] = thread_gaussians_used;
+    return color;
 }
 
-[AutoPyBindCUDA]
-[CUDAKernel]
 public void bwdRenderGaussians(
-    TensorView<int> gaussian_idxs,
-    TensorView<int> tile_range_starts,
-    TensorView<int> tile_range_ends,
+    TensorView<int> gaussian_idxs, 
+    int2 pixel_idx,
+    int tile_start_idx,
+    int tile_end_idx,
     DiffTensorView<float> inv_cov2Ds,
     DiffTensorView<float> centers,
     DiffTensorView<float> rgbs,
     DiffTensorView<float> opacities,
     TensorView<float> result,
     TensorView<int> num_gaussians_used,
-    float4 d_cur_pix,
+    float4 d_cur_pix
 ) {
-    int2 pixel_idx = (cudaBlockIdx() * cudaBlockDim() + cudaThreadIdx()).xy;
-    int tile_idx = cudaBlockIdx().y * NUM_TILES_PER_DIM + cudaBlockIdx().x;
-    int tile_start_idx = tile_range_starts[tile_idx];
-    int tile_end_idx = tile_range_ends[tile_idx];
     int num_threads_in_block = cudaBlockDim().x * cudaBlockDim().y;
 
     int num_gaussians_left = tile_end_idx - tile_start_idx;

@@ -1,6 +1,6 @@
 import torch
-import numpy as np
-from plyfile import PlyData
+import pandas as pd
+from pyntcloud import PyntCloud
 
 # temporary version of 3DGS GaussianModel for testing
 class GaussianModel:
@@ -8,20 +8,13 @@ class GaussianModel:
         self._load_ply(ply_path)
 
     def _load_ply(self, path: str) -> None:
-        plydata = PlyData.read(path)
-        v = plydata["vertex"]
+        points: pd.DataFrame = PyntCloud.from_file(path).points
 
-        xyz = np.stack([v["x"], v["y"], v["z"]], axis=1)
-        rots = np.stack([v["rot_0"], v["rot_1"], v["rot_2"], v["rot_3"]], axis=1)
-        scales = np.stack([v["scale_0"], v["scale_1"], v["scale_2"]], axis=1)
-        f_dc = np.stack([v["f_dc_0"], v["f_dc_1"], v["f_dc_2"]], axis=1)
-        opac = np.array(v["opacity"])
-
-        self._xyz = torch.tensor(xyz, dtype=torch.float32, device="cuda")
-        self._rotation = torch.tensor(rots, dtype=torch.float32, device="cuda")
-        self._scaling = torch.tensor(scales, dtype=torch.float32, device="cuda")
-        self._features_dc = torch.tensor(f_dc, dtype=torch.float32, device="cuda").unsqueeze(1)
-        self._opacity = torch.tensor(opac, dtype=torch.float32, device="cuda").unsqueeze(1)
+        self._xyz = torch.tensor(points[["x", "y", "z"]].values, dtype=torch.float32, device="cuda")
+        self._rotation = torch.tensor(points[["rot_0", "rot_1", "rot_2", "rot_3"]].values, dtype=torch.float32, device="cuda")
+        self._scaling = torch.exp(torch.tensor(points[["scale_0", "scale_1", "scale_2"]].values, dtype=torch.float32, device="cuda"))
+        self._features_dc = torch.tensor(points[["f_dc_0", "f_dc_1", "f_dc_2"]].values, dtype=torch.float32, device="cuda").unsqueeze(1)  # (N, 1, 3)
+        self._opacity = torch.sigmoid(torch.tensor(points["opacity"].values, dtype=torch.float32, device="cuda")).unsqueeze(1)
 
     @property
     def get_xyz(self):
@@ -33,7 +26,7 @@ class GaussianModel:
 
     @property
     def get_scaling(self):
-        return torch.exp(self._scaling)
+        return self._scaling
 
     @property
     def get_features_dc(self):
@@ -41,4 +34,4 @@ class GaussianModel:
 
     @property
     def get_opacity(self):
-        return torch.sigmoid(self._opacity)
+        return self._opacity

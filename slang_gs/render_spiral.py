@@ -3,11 +3,9 @@
 import argparse
 import math
 import subprocess
-import tempfile
 import torch
 import numpy as np
 from pathlib import Path
-from matplotlib import pyplot as plt
 
 from gaussian_model import GaussianModel
 from viewpoint_camera import ViewpointCamera
@@ -34,9 +32,22 @@ print(f"Loaded {pc.get_xyz.shape[0]} gaussians from {args.ply.name}")
 centroid = pc.get_xyz.mean(dim=0).cpu().numpy()
 target = centroid.tolist()
 
-frame_dir = tempfile.mkdtemp(prefix="spiral_frames_")
-print(f"Rendering {args.frames} frames to {frame_dir}")
+# Pipe raw RGB frames to ffmpeg — no per-frame disk I/O
+ffmpeg_cmd = [
+    "ffmpeg", "-y",
+    "-f", "rawvideo",
+    "-pix_fmt", "rgb24",
+    "-s", f"{args.width}x{args.height}",
+    "-r", str(args.fps),
+    "-i", "pipe:0",
+    "-c:v", "libx264",
+    "-pix_fmt", "yuv420p",
+    "-crf", "18",
+    str(output_path),
+]
+proc = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE)
 
+frame_bytes = args.width * args.height * 3
 for i in range(args.frames):
     t = i / args.frames
     theta = 2.0 * math.pi * t
@@ -60,24 +71,12 @@ for i in range(args.frames):
     bg_color = torch.zeros(3, device="cuda")
     out = render(cam, pc, pipe=None, bg_color=bg_color)
     img = out["render"].detach().cpu().numpy()[:, :, :3].clip(0, 1)
-
-    frame_path = Path(frame_dir) / f"{i:05d}.png"
-    plt.imsave(str(frame_path), img)
+    rgb = (img * 255.0).astype(np.uint8)
+    proc.stdin.write(rgb.tobytes())
     print(f"\r  frame {i + 1}/{args.frames}", end="", flush=True)
 
-print()
-
-print(f"Encoding video to {output_path}")
-subprocess.run(
-    [
-        "ffmpeg", "-y",
-        "-framerate", str(args.fps),
-        "-i", str(Path(frame_dir) / "%05d.png"),
-        "-c:v", "libx264",
-        "-pix_fmt", "yuv420p",
-        "-crf", "18",
-        str(output_path),
-    ],
-    check=True,
-)
-print(f"Saved {output_path}")
+proc.stdin.close()
+proc.wait()
+if proc.returncode != 0:
+    raise RuntimeError(f"ffmpeg exited with code {proc.returncode}")
+print(f"\nSaved {output_path}")

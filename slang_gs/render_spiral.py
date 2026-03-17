@@ -13,7 +13,8 @@ from init_3dgs import render
 
 parser = argparse.ArgumentParser(description="Render a spiral video around a gaussian PLY")
 parser.add_argument("ply", type=Path, help="path to .ply file")
-parser.add_argument("--frames", type=int, default=120, help="number of frames")
+parser.add_argument("--frames", type=int, default=None, help="number of frames (overridden by --duration if set)")
+parser.add_argument("--duration", type=float, default=None, help="video duration in seconds (sets frames = duration * fps, slower spiral)")
 parser.add_argument("--width", type=int, default=512)
 parser.add_argument("--height", type=int, default=512)
 parser.add_argument("--radius", type=float, default=5.0, help="orbit radius (distance from centroid)")
@@ -24,6 +25,11 @@ parser.add_argument("--fov", type=float, default=60.0, help="vertical FOV in deg
 parser.add_argument("--fps", type=int, default=30)
 parser.add_argument("-o", "--output", type=Path, default=None, help="output mp4 path (default: <ply_stem>_spiral.mp4)")
 args = parser.parse_args()
+
+if args.duration is not None:
+    args.frames = int(args.duration * args.fps)
+elif args.frames is None:
+    args.frames = 120
 
 output_path = args.output or args.ply.with_name(args.ply.stem + "_spiral.mp4")
 

@@ -58,7 +58,7 @@ public struct Gaussian
 }
 
 public float3 computeSHColor(Gaussian g, Camera cam) {
-    return clamp(g.color + float3(0.2, 0.2, 0.2), 0.0, 1.0);
+    return clamp(g.color, 0.0, 1.0);
 }
 
 public float3 mul_homogeneous(float4x4 mat, float3 vec) {

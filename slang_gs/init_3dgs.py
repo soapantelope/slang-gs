@@ -11,10 +11,18 @@ import slangtorch
 
 SHADER_PATH = Path(__file__).parent / "slang_shaders"
 
+_cuda_module = None
+
+def _get_cuda_module():
+    global _cuda_module
+    if _cuda_module is None:
+        _cuda_module = slangtorch.loadModule(str(SHADER_PATH / "renderer.slang"))
+    return _cuda_module
+
 # to insert with 3DGS
 def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, scaling_modifier=1.0, separate_sh=False, override_color=None, use_trained_exp=False):
     renderer = Renderer()
-    renderer_cuda_module = slangtorch.loadModule(str(SHADER_PATH / "renderer.slang"))
+    renderer_cuda_module = _get_cuda_module()
 
     positions =  pc.get_xyz
     rotations = pc.get_rotation

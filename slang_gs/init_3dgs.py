@@ -48,7 +48,7 @@ def render(viewpoint_camera, pc: GaussianModel, pipe, bg_color: torch.Tensor, sc
         focal_y,
         int(viewpoint_camera.image_height),
         int(viewpoint_camera.image_width),
-        glm.ivec2(64, 64)
+        glm.ivec2(32, 32)
     )
 
     out = {

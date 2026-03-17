@@ -73,6 +73,17 @@ def read_splat_file(filepath):
     return splats_data
 
 
+def apply_flips(splats_data, flip_x, flip_y, flip_z):
+    """Negate position coordinates along the given axes (in place)."""
+    for s in splats_data:
+        if flip_x:
+            s["x"] = -s["x"]
+        if flip_y:
+            s["y"] = -s["y"]
+        if flip_z:
+            s["z"] = -s["z"]
+
+
 def write_ply_file(splats_data, output_filepath, format):
     if not splats_data:
         print("No splats found.")
@@ -135,7 +146,11 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--input", help="Input .splat file")
     parser.add_argument("-o", "--output", help="Output .ply file")
     parser.add_argument("-f", "--format", help="Format: ascii, binary (binary_little_endian)", default="binary")
+    parser.add_argument("--flip-x", action="store_true", help="Flip position along X axis")
+    parser.add_argument("--flip-y", action="store_true", help="Flip position along Y axis")
+    parser.add_argument("--flip-z", action="store_true", help="Flip position along Z axis")
     args = parser.parse_args()
 
     read_splats = read_splat_file(args.input)
+    apply_flips(read_splats, args.flip_x, args.flip_y, args.flip_z)
     write_ply_file(read_splats, args.output, args.format) 

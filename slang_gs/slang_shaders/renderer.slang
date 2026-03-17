@@ -4,7 +4,7 @@ import math;
 import model;
 
 // 512x512 image, 32 tiles per dim, tiles of size 16x16
-static const int NUM_TILES_PER_DIM = 32;
+static const int NUM_TILES_PER_DIM = 64;
 static const int TILE_SIZE_PER_DIM = 16;
 groupshared ProjectedGaussian gaussians_in_threadgroup[TILE_SIZE_PER_DIM * TILE_SIZE_PER_DIM];
 groupshared int gaussian_idxs_in_threadgroup[TILE_SIZE_PER_DIM * TILE_SIZE_PER_DIM];

@@ -20,8 +20,8 @@ cam = ViewpointCamera(
     target=[0.0, -3.0, 2.0],
     up=[0.0, 1.0, 0.0],
     fov_y=math.radians(60),
-    image_width=512,
-    image_height=512,
+    image_width=1024,
+    image_height=1024,
 )
 
 bg_color = torch.zeros(3, device="cuda")
